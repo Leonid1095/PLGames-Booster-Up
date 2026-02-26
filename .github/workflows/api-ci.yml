@@ -1,0 +1,68 @@
+name: API CI
+
+on:
+  push:
+    paths:
+      - "api/**"
+  pull_request:
+    paths:
+      - "api/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: plgames_test
+          POSTGRES_USER: plgames
+          POSTGRES_PASSWORD: testpass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        working-directory: api
+        run: |
+          pip install -r requirements.txt
+          pip install ruff
+
+      - name: Lint
+        working-directory: api
+        run: ruff check .
+
+      - name: Test
+        working-directory: api
+        env:
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_DB: plgames_test
+          POSTGRES_USER: plgames
+          POSTGRES_PASSWORD: testpass
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET_KEY: test-secret
+        run: pytest -v

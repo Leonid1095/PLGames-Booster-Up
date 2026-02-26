@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+scrape_configs:
+  # API server metrics
+  - job_name: "plgames-api"
+    static_configs:
+      - targets: ["api:8000"]
+    metrics_path: /api/metrics
+
+  # Gateway nodes (PLG Relay + Agent)
+  # Update IPs after server provisioning
+  - job_name: "gateway-nodes"
+    static_configs:
+      - targets: []
+        # - "RELAY_DE_IP:9100"
+        # - "RELAY_SE_IP:9100"
+        # - "RELAY_US_IP:9100"
+        # - "RELAY_LV_IP:9100"
+    labels:
+      service: "gateway"

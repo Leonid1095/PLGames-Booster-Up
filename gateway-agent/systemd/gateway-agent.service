@@ -1,0 +1,16 @@
+[Unit]
+Description=PLGames Gateway Agent
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/plgames/gateway-agent
+ExecStart=/usr/bin/python3 agent.py
+Restart=always
+RestartSec=5
+Environment=RELAY_API_KEY=
+Environment=CENTRAL_API_URL=
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,18 @@
+# PLGames Gateway Agent Configuration
+
+node:
+  location: "DE"           # DE, SE, US, LV
+  city: "Frankfurt"
+
+relay:
+  port: 443                # PLG Relay UDP port
+
+agent:
+  api_port: 8443           # Health-check and management API
+  api_key: ""              # Set via env: RELAY_API_KEY
+  ping_interval_sec: 30    # How often to ping game servers
+  metrics_port: 9100       # Prometheus metrics
+
+central_api:
+  url: ""                  # Set via env: CENTRAL_API_URL
+  api_key: ""              # Set via env: RELAY_API_KEY
