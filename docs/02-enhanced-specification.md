@@ -1,483 +1,575 @@
-# PLGames Booster UP - Улучшенная спецификация проекта
+# PLGames Booster UP — Финальная спецификация проекта
 
-> Доработанная версия исходного промта с учётом конкурентного анализа.
-> Изменения и дополнения помечены как **[НОВОЕ]** или **[ИЗМЕНЕНО]**.
+> Архитектура на уровне GearUP Booster / ExitLag.
+> Кастомный UDP relay протокол + WireGuard fallback.
 
 ---
 
 ## 1. Продукт и цель
 
-**Сервис:** PLGames Booster UP — игровой сетевой ускоритель для русскоязычных геймеров.
+**Сервис:** PLGames Booster UP — игровой сетевой ускоритель.
 
-**Позиционирование:** Единственный game-booster, специализированный на аудитории РФ/СНГ с фокусом на обход региональных блокировок и оптимизацию маршрутов до EU/US серверов.
+**Публичное позиционирование:** Ускоритель для онлайн-игр. Оптимизация маршрута, снижение пинга, стабильное соединение. **Не VPN. Не средство обхода.** Мы оптимизируем игровой маршрут — как GearUP, как ExitLag.
+
+**Как работает на самом деле:** Трафик идёт через наши узлы в EU/US. Побочный эффект — доступ к любым серверам. Но мы это не афишируем.
 
 ### Цели продукта:
 
-1. Снизить пинг и потери пакетов в онлайн-играх за счёт маршрутизации через оптимальные узлы
-2. Обходить региональные блокировки игр (РФ) через зарубежные узлы (DE, SE, US, LV)
-3. Дать удобный десктоп-клиент с визуалом уровня GearUP: выбор игры, выбор региона, пинг в реальном времени
-4. **[НОВОЕ]** Показывать честную метрику "ДО и ПОСЛЕ" ускорения (benchmark-режим как у NoPing/Outfox)
-5. **[НОВОЕ]** Обеспечить прозрачный биллинг без скрытых списаний (главная жалоба на конкурентов)
+1. Снизить пинг и потери пакетов за счёт маршрутизации через оптимальные узлы
+2. Мультипутевая маршрутизация с дупликацией пакетов (как GearUP AIR)
+3. Удобный десктоп-клиент: выбор игры, региона, пинг в реальном времени
+4. Benchmark: честная метрика ДО и ПОСЛЕ ускорения
+5. Прозрачный биллинг через DonatePay
 
 ### Целевая аудитория:
 - Геймеры из РФ/СНГ, 16–35 лет
 - Играющие на EU/US серверах
-- Столкнувшиеся с блокировками (Steam, Epic, игровые серверы)
+- Ищущие стабильный пинг и доступ к любым серверам
 
 ### Платформа MVP:
-- **Сервер:** Ubuntu 24.04, основной узел DE + дополнительные: SE, US, LV
+- **Серверы:** Ubuntu 24.04, узлы в DE, SE, US, LV
 - **Клиент:** Windows x64
-- **Позже (v2):** Android, **[НОВОЕ]** Telegram-бот для управления
+- **Позже (v2):** Android, Telegram-бот
 
 ---
 
 ## 2. Архитектура
 
-### 2.1. Компоненты системы
+### 2.1. Транспортный протокол: PLG Protocol
+
+**Основной транспорт — кастомный UDP relay (как GearUP/ExitLag), не VPN.**
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                    ПОЛЬЗОВАТЕЛЬ                      │
-│  Windows-клиент (Tauri + React)                     │
-│  ┌─────────┐ ┌──────────┐ ┌───────────────────┐    │
-│  │ UI/React│ │WireGuard │ │Split-tunnel routes│    │
-│  │         │ │  tunnel  │ │ (game IPs only)   │    │
-│  └────┬────┘ └────┬─────┘ └───────┬───────────┘    │
-└───────┼───────────┼───────────────┼─────────────────┘
-        │ API       │ WG tunnel     │ Game traffic
-        ▼           ▼               ▼
-┌───────────────────────────────────────────────────────┐
-│              ЦЕНТРАЛЬНЫЙ СЕРВЕР (DE)                   │
-│  ┌────────┐ ┌────────┐ ┌──────┐ ┌─────┐ ┌────────┐  │
-│  │FastAPI │ │Next.js │ │Postgr│ │Redis│ │Promethe│  │
-│  │  API   │ │Landing │ │  SQL │ │     │ │us+Graf │  │
-│  └────────┘ └────────┘ └──────┘ └─────┘ └────────┘  │
-└───────────────────────────────────────────────────────┘
+┌─── КЛИЕНТ (Windows) ──────────────────────────────────────┐
+│                                                             │
+│  WinDivert: перехват пакетов к игровым IP/портам            │
+│       ↓                                                     │
+│  PLG Protocol обёртка:                                      │
+│  ┌───────────────────────────────────────────┐              │
+│  │ Session ID   (4 bytes)                    │              │
+│  │ Seq Number   (4 bytes)                    │              │
+│  │ Flags        (1 byte)                     │              │
+│  │ Path ID      (1 byte)                     │              │
+│  │ ─────────────────────────────────────────  │              │
+│  │ Оригинальный игровой UDP-пакет (payload)  │              │
+│  └───────────────────────────────────────────┘              │
+│  Overhead: 10 bytes. Без шифрования.                        │
+│       ↓                                                     │
+│  Отправка → узел(ы), порт 443/UDP                           │
+│                                                             │
+│  Multipath: один пакет → 2 узла одновременно                │
+│  Первый ответ принимается, дубликат отбрасывается           │
+└─────────────────────────────────────────────────────────────┘
+         │                          │
+    UDP :443                   UDP :443
+    (DPI видит обычный UDP)    (как QUIC — легитимно)
+         │                          │
+         ▼                          ▼
+┌─────────────┐            ┌─────────────┐
+│  Узел DE    │            │  Узел SE    │
+│  (основной) │            │  (резерв)   │
+│             │            │             │
+│  Снять      │            │  Снять      │
+│  обёртку →  │            │  обёртку →  │
+│  Forward →  │            │  Forward →  │
+│  NAT →      │            │  NAT →      │
+│  Game Server│            │  Game Server│
+└──────┬──────┘            └─────────────┘
+       │
+       ▼
+   Игровой сервер
+       │ ответ
+       ▼
+   Узел → обёртка → клиент
+```
+
+**Почему порт 443/UDP:** QUIC (HTTP/3) использует тот же порт. DPI видит обычный UDP на 443 — Google, YouTube, Cloudflare так делают. Не палится.
+
+**Почему без шифрования:** GearUP и ExitLag не шифруют — работают в РФ без блокировок. DPI ищет VPN-сигнатуры (WG handshake, OpenVPN header), а не абстрактный UDP. Шифрование = overhead = задержка. Для ускорителя это anti-pattern.
+
+### PLG Protocol — формат пакета
+
+```
+ Offset  Size   Field
+ 0       4      Session ID (уникален на сессию)
+ 4       4      Sequence Number (для дедупликации)
+ 8       1      Flags:
+                  0x01 = multipath duplicate
+                  0x02 = keepalive
+                  0x04 = control message
+                  0x08 = compressed
+ 9       1      Path ID (0 = primary, 1 = backup)
+ 10      N      Payload (оригинальный игровой пакет)
+
+Total overhead: 10 bytes
+Сравнение: WireGuard = ~60 bytes, GearUP = ~12-16 bytes
+```
+
+### WireGuard — fallback (не основной)
+
+В настройках клиента: опция **"Защищённый режим"**
+- Включает WireGuard + obfs4 обёртку
+- Для случаев когда основной протокол не работает
+- Или пользователь хочет шифрование
+- Overhead выше (+1-3ms), но трафик зашифрован
+
+```
+Порядок подключения:
+1. PLG Protocol (443/UDP) → основной, быстрый
+2. Если fail → WireGuard + obfs4 (fallback)
+```
+
+### 2.2. Компоненты системы
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    ПОЛЬЗОВАТЕЛЬ                              │
+│  Windows-клиент (Tauri + React)                             │
+│  ┌─────────┐ ┌───────────┐ ┌──────────┐ ┌───────────────┐  │
+│  │ UI/React│ │ WinDivert │ │PLG Proto │ │WG fallback   │  │
+│  │         │ │ intercept │ │ UDP relay│ │(опционально) │  │
+│  └────┬────┘ └─────┬─────┘ └────┬─────┘ └──────┬────────┘  │
+└───────┼────────────┼────────────┼───────────────┼───────────┘
+        │ API        │ game pkts  │ relay         │ WG tunnel
+        ▼            ▼            ▼               ▼
+┌───────────────────────────────────────────────────────────────┐
+│              ЦЕНТРАЛЬНЫЙ СЕРВЕР (DE)                           │
+│  ┌────────┐ ┌────────┐ ┌──────┐ ┌─────┐ ┌────────────────┐  │
+│  │FastAPI │ │Next.js │ │Postgr│ │Redis│ │Prometheus+Graf │  │
+│  │  API   │ │Landing │ │  SQL │ │     │ │                │  │
+│  └────────┘ └────────┘ └──────┘ └─────┘ └────────────────┘  │
+└───────────────────────────────────────────────────────────────┘
         │
-        ▼ Управление peer-ами и метриками
-┌──────────────────────────────────────────────────────┐
-│              GATEWAY NODES (WireGuard)                │
-│  ┌────┐  ┌────┐  ┌────┐  ┌────┐                    │
-│  │ DE │  │ SE │  │ US │  │ LV │                    │
-│  └──┬─┘  └──┬─┘  └──┬─┘  └──┬─┘                    │
-│     │NAT    │NAT    │NAT    │NAT                    │
-└─────┼───────┼───────┼───────┼────────────────────────┘
-      ▼       ▼       ▼       ▼
-   Игровые серверы (Steam, Riot, Blizzard, etc.)
+        ▼ Управление сессиями и метриками
+┌────────────────────────────────────────────────────────────────┐
+│              GATEWAY NODES (PLG Relay + WG fallback)            │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
+│  │ DE (FRA) │  │ SE (STO) │  │ US (NYC) │  │ LV (RIX) │      │
+│  │ relay+wg │  │ relay+wg │  │ relay+wg │  │ relay+wg │      │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘      │
+│       │NAT          │NAT          │NAT          │NAT          │
+└───────┼─────────────┼─────────────┼─────────────┼─────────────┘
+        ▼             ▼             ▼             ▼
+     Игровые серверы (Steam, Riot, Blizzard, EA, etc.)
 ```
-
-### 2.2. Компоненты (подробно)
 
 #### A. Landing-сайт
-- Домен: plgames.gg (или аналог)
-- Одностраничник: описание, тарифы, скачивание
-- Регистрация/кабинет → бэкенд API
-- **[НОВОЕ]** Интерактивный speed-test на лендинге (пинг до наших узлов прямо в браузере через WebSocket)
+- Домен: **TBD** (будет куплен позже)
+- Одностраничник: описание сервиса, тарифы, скачивание
+- Регистрация/личный кабинет → бэкенд API
+- Мини speed-test на лендинге (пинг до наших узлов через WebSocket)
+- **Блок "Наши проекты"** — ссылки на другие проекты команды
+- **Поддержка** — ссылка на наш проект поддержки (TBD)
 
 #### B. Бэкенд-API
 REST/JSON API:
 - Регистрация/логин (email + пароль)
-- **[НОВОЕ]** OAuth через Telegram, Discord, Steam (приоритет для ЦА)
-- Список узлов и метрики
+- OAuth: Telegram, Discord, Steam
+- Список узлов и метрики в реальном времени
 - Игровые профили (IP/CIDR + порты)
-- Генерация WireGuard-конфигов
-- Учёт сессий и подписок
-- **[НОВОЕ]** Benchmark API — замер пинга ДО/ПОСЛЕ для отчётности
-- **[НОВОЕ]** Webhook для Telegram-бота (статус подписки, уведомления)
+- Управление relay-сессиями (выдача session_id, node assignment)
+- WireGuard конфиг-генератор (для fallback режима)
+- Benchmark API
+- Интеграция с DonatePay (webhook)
 
 #### C. Gateway Nodes
 - VPS Ubuntu 24 в регионах: DE, SE, US, LV
-- WireGuard-сервер + NAT
-- **[НОВОЕ]** Health-check агент с push метрик в Prometheus
-- **[НОВОЕ]** Автоматическое масштабирование peer-лимитов (мониторинг загрузки)
+- **PLG Relay Server** — основной: приём UDP, снятие обёртки, forward
+- **WireGuard Server** — fallback: для "защищённого режима"
+- NAT (MASQUERADE)
+- Health-check агент + push метрик в Prometheus
 
 #### D. Десктоп-клиент Windows
-- **[ИЗМЕНЕНО]** Tauri + React (вместо Electron — на 80% меньше ресурсов, критично для геймеров)
-- WireGuard-туннель + split-tunneling
-- **[НОВОЕ]** Авто-детект запущенных игр (мониторинг процессов)
-- **[НОВОЕ]** Benchmark-режим: замер пинга без ускорения и с ускорением
+- Tauri 2.x + React (лёгкий, ~10-15 MB)
+- WinDivert для перехвата игровых пакетов
+- PLG Protocol (Rust) — обёртка + отправка на узлы
+- Multipath + дедупликация
+- WireGuard fallback (wireguard-nt)
+- Авто-детект запущенных игр
 
 #### E. Админ-панель
-- Веб-интерфейс: пользователи, подписки, сессии
+- Пользователи, подписки, сессии
 - Управление узлами
 - Редактор игровых профилей
-- **[НОВОЕ]** Дашборд с метриками в реальном времени (Grafana embed)
-
-#### F. **[НОВОЕ]** Telegram-бот
-- Статус подписки, остаток trial
-- Быстрое подключение к ускорению (генерация конфига)
-- Уведомления о проблемах с узлами
-- Реферальная программа
+- Grafana embed
 
 ---
 
-## 3. Инфраструктура и серверы
+## 3. Инфраструктура
 
 ### 3.1. Центральный сервер (DE)
 - Ubuntu 24.04, 2 vCPU, 4 GB RAM, 40 GB SSD
-- Docker Compose (MVP)
+- Docker Compose
 - Сервисы:
-  - `api` — FastAPI (Python)
+  - `api` — FastAPI (Python 3.12+)
   - `web` — Next.js (лендинг + кабинет)
   - `db` — PostgreSQL 16
   - `redis` — кэш метрик и сессий
   - `prometheus` + `grafana` — мониторинг
-  - **[НОВОЕ]** `bot` — Telegram-бот (aiogram)
 
 ### 3.2. Gateway Nodes
 
 | Узел | Локация | Назначение | Spec |
 |------|---------|------------|------|
-| DE | Германия (Франкфурт) | Основной, EU-игры | 2 vCPU, 4 GB RAM |
-| SE | Швеция (Стокгольм) | Скандинавия, низкий пинг из СПб | 1 vCPU, 2 GB RAM |
-| US | США (Нью-Йорк) | NA-серверы игр | 2 vCPU, 2 GB RAM |
-| LV | Латвия (Рига) | Минимальный пинг из РФ | 1 vCPU, 2 GB RAM |
+| DE | Франкфурт | Основной, EU-игры | 2 vCPU, 4 GB RAM |
+| SE | Стокгольм | Скандинавия, низкий пинг из СПб | 1 vCPU, 2 GB RAM |
+| US | Нью-Йорк | NA-серверы игр | 2 vCPU, 2 GB RAM |
+| LV | Рига | Ближайший к РФ | 1 vCPU, 2 GB RAM |
 
-Каждый узел:
-- Ubuntu 24.04
-- Открытые порты: UDP 51820 (WireGuard), TCP 8443 (health-check)
-- **[НОВОЕ]** Резервный UDP-порт для obfuscation (на случай блокировки WireGuard по DPI)
+Открытые порты на каждом:
+- **UDP 443** — PLG Relay (основной, маскируется под QUIC)
+- **UDP 51820** — WireGuard (fallback)
+- **TCP 8443** — health-check агент (закрыт извне, только для API-сервера)
 
 ### 3.3. Сетевая конфигурация узла
 
 ```bash
-# WireGuard
-# Интерфейс wg0: 10.10.X.1/24 (X — уникален на каждом узле)
-# Отдельный peer на каждого пользователя (AllowedIPs = 10.10.X.Y/32)
-
-# NAT
+# NAT — весь форвард через eth0
 iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
 
 # SYSCTL
 net.ipv4.ip_forward=1
 net.ipv6.conf.all.forwarding=1
-```
 
-**[НОВОЕ]** Дополнительные оптимизации sysctl для гейминга:
-```bash
-# Увеличение буферов UDP
+# Оптимизации UDP для гейминга
 net.core.rmem_max=26214400
 net.core.wmem_max=26214400
 net.core.rmem_default=1048576
 net.core.wmem_default=1048576
 
-# Уменьшение задержки conntrack
+# Быстрый conntrack для UDP
 net.netfilter.nf_conntrack_udp_timeout=30
 net.netfilter.nf_conntrack_udp_timeout_stream=60
-
-# Отключение reverse path filtering для WG
-net.ipv4.conf.wg0.rp_filter=0
 
 # BBR congestion control
 net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
 ```
 
+### 3.4. WireGuard (fallback)
+
+```bash
+# Только для "защищённого режима"
+# Интерфейс wg0: 10.10.X.1/24 (X уникален на каждом узле)
+# DE=1, SE=2, US=3, LV=4
+# Отдельный peer на каждого пользователя
+```
+
 ---
 
 ## 4. Бэкенд: логика и API
 
-### 4.1. Технологический стек
-- **Язык:** Python 3.12+ (FastAPI) — быстрая разработка MVP
+### 4.1. Стек
+- **Язык:** Python 3.12+ (FastAPI)
 - **БД:** PostgreSQL 16
-- **Кэш/очередь:** Redis 7
-- **Аутентификация:** JWT (access + refresh tokens)
-- **[НОВОЕ]** Task queue: Celery + Redis (для асинхронных задач: генерация конфигов, метрики)
-- **[НОВОЕ]** Миграции: Alembic
+- **Кэш:** Redis 7
+- **Auth:** JWT (access 15min + refresh 7d)
+- **Миграции:** Alembic
+- **Task queue:** Celery + Redis
+- **Оплата:** DonatePay (webhook API)
 
 ### 4.2. Основные сущности
 
 ```python
-# User
 class User:
     id: UUID
     email: str
     password_hash: str
-    telegram_id: int | None          # [НОВОЕ]
-    discord_id: str | None           # [НОВОЕ]
+    telegram_id: int | None
+    discord_id: str | None
+    steam_id: str | None
     plan: Enum  # free, trial, pro
     plan_expires_at: datetime | None
-    referral_code: str               # [НОВОЕ]
-    referred_by: UUID | None         # [НОВОЕ]
+    referral_code: str
+    referred_by: UUID | None
     created_at: datetime
 
-# Node
 class Node:
     id: UUID
-    location: str  # DE, SE, US, LV
-    city: str                        # [НОВОЕ] Frankfurt, Stockholm, etc.
+    location: str       # DE, SE, US, LV
+    city: str           # Frankfurt, Stockholm, etc.
     public_ip: str
-    wg_port: int
+    relay_port: int     # 443 (PLG Relay)
+    wg_port: int        # 51820 (fallback)
     wg_public_key: str
-    status: Enum  # online, offline, maintenance
+    status: Enum        # online, offline, maintenance
     priority: int
     max_clients: int
-    current_clients: int             # [НОВОЕ]
-    avg_rtt_ms: float                # [НОВОЕ] средний пинг до игровых серверов
+    current_clients: int
+    avg_rtt_ms: float
 
-# GameProfile
 class GameProfile:
     id: UUID
     name: str
     slug: str
-    icon_url: str                    # [НОВОЕ]
-    cover_url: str                   # [НОВОЕ]
-    platform: Enum  # pc, mobile, both
-    cidrs: list[str]   # IP/CIDR игровых серверов
-    ports: list[PortRange]  # UDP/TCP порты
-    recommended_node: str | None     # [НОВОЕ] предпочтительный регион
-    is_verified: bool                # [НОВОЕ] проверен ли профиль
+    icon_url: str
+    cover_url: str
+    category: Enum      # fps, moba, mmo, br, racing, other
+    platform: Enum      # pc, mobile, both
+    cidrs: list[str]    # IP/CIDR игровых серверов
+    ports: list[PortRange]  # UDP/TCP порты для перехвата
+    executable_names: list[str]  # процессы Windows для авто-детекта
+    recommended_node: str | None
+    is_verified: bool
 
-# Session
 class Session:
     id: UUID
     user_id: UUID
     node_id: UUID
     game_id: UUID
+    transport: Enum     # plg_relay, wireguard
+    multipath_enabled: bool
     start_time: datetime
     end_time: datetime | None
     avg_ping_ms: float | None
     avg_loss_pct: float | None
-    ping_before_ms: float | None     # [НОВОЕ] пинг ДО ускорения
-    ping_after_ms: float | None      # [НОВОЕ] пинг ПОСЛЕ ускорения
-    bytes_transferred: int           # [НОВОЕ] для аналитики
+    ping_before_ms: float | None
+    ping_after_ms: float | None
+    bytes_transferred: int
 
-# [НОВОЕ] Subscription
 class Subscription:
     id: UUID
     user_id: UUID
-    plan: Enum  # trial, monthly, quarterly, yearly
-    status: Enum  # active, expired, cancelled
+    plan: Enum          # trial, monthly, quarterly, yearly
+    status: Enum        # active, expired, cancelled
     started_at: datetime
     expires_at: datetime
-    payment_provider: str  # stripe, robokassa, cryptomus
+    payment_provider: str  # donatepay
+    donatepay_id: str | None
     auto_renew: bool
 ```
 
 ### 4.3. API-эндпоинты
 
-#### Аутентификация
+#### Auth
 ```
-POST /api/v1/auth/register          — регистрация (email + пароль)
-POST /api/v1/auth/login             — логин → JWT tokens
-POST /api/v1/auth/refresh           — обновление access token
-POST /api/v1/auth/telegram          — [НОВОЕ] OAuth через Telegram
-POST /api/v1/auth/discord           — [НОВОЕ] OAuth через Discord
+POST /api/v1/auth/register
+POST /api/v1/auth/login         → JWT tokens
+POST /api/v1/auth/refresh
+POST /api/v1/auth/telegram      → OAuth
+POST /api/v1/auth/discord       → OAuth
 ```
 
 #### Игры и узлы
 ```
-GET  /api/v1/games                  — список игр с профилями
-GET  /api/v1/games/{slug}           — детали игры
-GET  /api/v1/games/search?q=        — [НОВОЕ] поиск игр
-GET  /api/v1/nodes                  — список узлов с метриками
-GET  /api/v1/nodes/{id}/ping        — [НОВОЕ] текущий пинг до узла
+GET  /api/v1/games              → список игр
+GET  /api/v1/games/{slug}       → детали + CIDR + порты
+GET  /api/v1/games/search?q=    → поиск
+GET  /api/v1/nodes              → список узлов с метриками
+GET  /api/v1/nodes/{id}/ping    → текущий пинг
 ```
 
 #### Сессии
 ```
-POST /api/v1/sessions/start         — старт сессии
-  Request:  { game_id, preferred_region, client_public_key }
-  Response: { node, wg_config, game_ips, ping_before }
+POST /api/v1/sessions/start
+  Request:  { game_id, preferred_region, transport: "plg_relay"|"wireguard" }
+  Response: {
+    session_id,
+    node: { ip, relay_port, wg_config? },
+    game_ips: [...],
+    multipath_node?: { ip, relay_port }
+  }
 
-POST /api/v1/sessions/stop          — остановка сессии
-  Request:  { session_id, metrics: { avg_ping, avg_loss, ping_samples[] } }
+POST /api/v1/sessions/stop
+  Request:  { session_id, metrics }
 
-GET  /api/v1/sessions/active        — [НОВОЕ] текущая активная сессия
-GET  /api/v1/sessions/history       — история сессий
-```
-
-#### Пользователь и подписки
-```
-GET  /api/v1/me                     — профиль пользователя
-GET  /api/v1/me/subscription        — [НОВОЕ] текущая подписка
-POST /api/v1/me/subscription/cancel — [НОВОЕ] отмена подписки (одна кнопка!)
-GET  /api/v1/me/stats               — [НОВОЕ] статистика (общее время, сэкономленный пинг)
+GET  /api/v1/sessions/active
+GET  /api/v1/sessions/history
 ```
 
-#### [НОВОЕ] Benchmark
+#### Пользователь
 ```
-POST /api/v1/benchmark/start        — замер пинга до игровых серверов без ускорения
-POST /api/v1/benchmark/result       — сравнение ДО/ПОСЛЕ
+GET  /api/v1/me
+GET  /api/v1/me/subscription
+POST /api/v1/me/subscription/cancel
+GET  /api/v1/me/stats
 ```
 
-#### [НОВОЕ] Платежи
+#### Benchmark
 ```
-POST /api/v1/payments/create        — создание платежа
-POST /api/v1/payments/webhook       — webhook от платёжной системы
-GET  /api/v1/payments/history       — история платежей
+POST /api/v1/benchmark/start
+POST /api/v1/benchmark/result
+```
+
+#### Платежи (DonatePay)
+```
+POST /api/v1/payments/create    → генерация ссылки DonatePay
+POST /api/v1/payments/webhook   → webhook от DonatePay
+GET  /api/v1/payments/history
 ```
 
 ---
 
 ## 5. Gateway Nodes: работа
 
-### 5.1. WireGuard
+### 5.1. PLG Relay Server (основной)
 
-На каждом узле:
-- Серверный конфиг `wg0` с постоянным ключевым парой
-- Бэкенд динамически добавляет/удаляет peers через `wg set` API
-- Каждый пользователь получает уникальный `10.10.X.Y/32`
+Бинарник на каждом узле (Rust или Go):
 
-Генерация клиентского конфига (бэкенд):
-```ini
-[Interface]
-PrivateKey = <client_private_key>
-Address = 10.10.X.Y/32
-DNS = 1.1.1.1
-
-[Peer]
-PublicKey = <server_public_key>
-Endpoint = <node_public_ip>:51820
-AllowedIPs = 10.10.X.0/24, <game_server_ips>
-PersistentKeepalive = 25
+```
+1. Слушает UDP :443
+2. Получает пакет от клиента
+3. Парсит PLG header (10 bytes)
+4. Валидирует session_id (кэш в памяти, синхронизация с API)
+5. Извлекает оригинальный игровой пакет
+6. Отправляет через raw socket / NAT на игровой сервер
+7. Получает ответ от игрового сервера
+8. Оборачивает в PLG header
+9. Отправляет обратно клиенту
 ```
 
-**[НОВОЕ]** AllowedIPs формируются динамически из GameProfile.cidrs — только игровой трафик через туннель.
+**Производительность:** ~100K пакетов/сек на 1 vCPU (UDP forwarding — тривиальная операция).
 
 ### 5.2. Мониторинг узлов
 
-Агент на каждом узле (Python/Go скрипт):
-- Каждые 30 сек пингует ключевые IP из GameProfile
-- Отправляет метрики в Prometheus:
-  - `node_game_rtt_ms{game, node, target_ip}`
-  - `node_game_loss_pct{game, node, target_ip}`
-  - `node_wg_peers_count{node}`
-  - `node_bandwidth_mbps{node, direction}`
-- **[НОВОЕ]** Alert при потере > 5% или RTT > 100ms → уведомление в Telegram админам
+Агент на каждом узле:
+- Каждые 30 сек пингует игровые серверы из GameProfile
+- Prometheus метрики:
+  - `plg_node_game_rtt_ms{game, node}`
+  - `plg_node_game_loss_pct{game, node}`
+  - `plg_node_active_sessions{node}`
+  - `plg_node_bandwidth_mbps{node, direction}`
+- Alert при loss > 5% или RTT > 100ms → Telegram
 
-### 5.3. **[НОВОЕ]** Выбор лучшего узла (алгоритм)
+### 5.3. Выбор лучшего узла
 
 ```python
-def select_best_node(game_id: str, preferred_region: str | None) -> Node:
+def select_best_node(game_id, preferred_region=None):
     nodes = get_online_nodes()
     game = get_game_profile(game_id)
 
     scored = []
     for node in nodes:
         score = 0
-        # Пинг до игровых серверов (вес 50%)
         avg_rtt = get_node_game_rtt(node.id, game.id)
-        score += (200 - avg_rtt) * 0.5
-
-        # Загруженность (вес 20%)
+        score += (200 - avg_rtt) * 0.5          # пинг (50%)
         load = node.current_clients / node.max_clients
-        score += (1 - load) * 100 * 0.2
-
-        # Потери пакетов (вес 20%)
+        score += (1 - load) * 100 * 0.2          # загрузка (20%)
         loss = get_node_game_loss(node.id, game.id)
-        score += (100 - loss * 100) * 0.2
-
-        # Предпочтение пользователя (вес 10%)
-        if preferred_region and node.location == preferred_region:
-            score += 10
-
-        # Рекомендация профиля игры
+        score += (100 - loss * 100) * 0.2        # потери (20%)
+        if preferred_region == node.location:
+            score += 10                           # предпочтение (10%)
         if game.recommended_node == node.location:
             score += 5
-
         scored.append((node, score))
 
-    return max(scored, key=lambda x: x[1])[0]
+    best = max(scored, key=lambda x: x[1])[0]
+
+    # Выбор backup-узла для multipath (второй по score, другая локация)
+    backup = None
+    for node, s in sorted(scored, key=lambda x: -x[1]):
+        if node.id != best.id:
+            backup = node
+            break
+
+    return best, backup
 ```
 
 ---
 
-## 6. Клиент Windows: функционал и UX
+## 6. Клиент Windows
 
 ### 6.1. Технологии
 
-- **Оболочка:** Tauri 2.x + React + TypeScript
-  - **[ИЗМЕНЕНО]** Tauri вместо Electron: ~10 MB вместо ~150 MB, нативная производительность
-  - Меньше нагрузки на систему — критично для геймеров
-- **WireGuard:** wireguard-nt через Rust FFI (Tauri нативно на Rust)
-- **Маршруты:** Windows WinAPI через Rust (route add/delete для split-tunneling)
-- **[НОВОЕ]** Авто-детект игр: мониторинг процессов через Windows API
+- **Оболочка:** Tauri 2.x + React + TypeScript + Tailwind CSS
+- **Перехват трафика:** WinDivert (C library, Rust FFI)
+- **PLG Protocol:** Rust — обёртка/распаковка, UDP socket, multipath
+- **WG fallback:** wireguard-nt через Rust FFI
+- **Авто-детект:** Windows Process API через Rust
 
 ### 6.2. Экраны
 
-#### 1. Экран авторизации
-- Вход: email/пароль
-- **[НОВОЕ]** Вход через Telegram, Discord
-- Показать план, остаток trial
-- Ссылка на регистрацию
+#### 1. Авторизация
+- Email/пароль, Telegram, Discord
+- Статус подписки, остаток trial
 
-#### 2. Главный экран (Dashboard)
-- **[НОВОЕ]** Текущий пинг до ближайшего узла (без подключения)
-- Быстрый доступ к последним играм
+#### 2. Dashboard (главный)
+- Пинг до ближайшего узла
+- Последние игры (быстрый доступ)
+- "Quick Boost" кнопка
 - Статус подписки
-- Кнопка "Quick Boost" для последней игры
 
-#### 3. Экран выбора игры
-- Поиск по названию
-- Карточки игр: иконка, название, платформа, статус
-- **[НОВОЕ]** Категории: FPS, MOBA, MMO, Battle Royale, Racing
-- **[НОВОЕ]** Бейдж "Оптимизировано" для проверенных профилей
-- Секция "Скоро": игры в разработке профиля
+#### 3. Выбор игры
+- Поиск, категории (FPS, MOBA, MMO, BR, Racing)
+- Карточки с иконками и бейджами "Оптимизировано"
+- Секция "Скоро"
 
-#### 4. Экран подключения (для выбранной игры)
-- Список регионов/узлов:
-  - **Авто** (рекомендованный, алгоритм выбора)
+#### 4. Подключение (для игры)
+- Регионы/узлы:
+  - Авто (рекомендованный)
   - DE, SE, US, LV
-  - Рядом: пинг до узла, загруженность (цветовой индикатор)
-- Кнопка "Играть с ускорением"
-- **[НОВОЕ]** Кнопка "Benchmark" — замерить ДО/ПОСЛЕ
-- Опция: автозапуск .exe игры после подключения
+  - Пинг + загруженность (цвет)
+- "Играть с ускорением"
+- "Benchmark" — замер ДО/ПОСЛЕ
+- Авто-запуск .exe
 
-#### 5. Dashboard активной сессии
-- Крупный пинг (ms) с цветовым индикатором:
-  - Зелёный: < 50ms
-  - Жёлтый: 50–100ms
-  - Красный: > 100ms
-- Потери пакетов (%)
-- **[НОВОЕ]** Jitter (ms)
-- График пинга за последние 10 минут
-- Схема маршрута: `Ты → Узел (DE) → Сервер игры`
-- **[НОВОЕ]** Сравнение: "Без ускорения: 85ms → С ускорением: 32ms"
-- Кнопка "Остановить ускорение"
+#### 5. Активная сессия
+- Крупный пинг (зелёный < 50ms, жёлтый 50-100, красный > 100)
+- Потери (%), Jitter (ms)
+- График пинга (10 мин)
+- Маршрут: `Ты → Узел (DE) → Сервер игры`
+- Сравнение: "Без ускорения: 85ms → С ускорением: 32ms"
+- "Остановить ускорение"
 
 #### 6. Настройки
 - Автозапуск с Windows
 - Язык: RU / EN
-- **[НОВОЕ]** Тема: тёмная / светлая (по умолчанию тёмная — геймерская)
-- **[НОВОЕ]** Уведомления: включить/выключить
-- Логи (для отладки)
-- **[НОВОЕ]** Раздел "О программе" с версией
+- Тема: тёмная (default) / светлая
+- **Защищённый режим** (WireGuard fallback)
+- Логи
+- О программе
 
-#### 7. **[НОВОЕ]** Экран подписки
-- Текущий план и дата окончания
-- Тарифы с ценами
-- Кнопка оплаты
-- **Кнопка отмены подписки** (одним кликом, без скрытых шагов!)
+#### 7. Подписка
+- Текущий план + дата
+- Тарифы
+- Оплата через DonatePay
+- Отмена одной кнопкой
 - История платежей
 
-### 6.3. Логика работы клиента
-
-1. **Запуск** → проверка авторизации → загрузка списка игр и узлов через API
-2. **Выбор игры** → регион → "Играть с ускорением"
-3. **Клиент:**
-   - `POST /sessions/start` → получает node + WG-конфиг + game_ips
-   - **[НОВОЕ]** Замеряет ping_before (ICMP до game IP без туннеля)
-   - Сохраняет конфиг, поднимает WireGuard-туннель
-   - Добавляет маршруты для game_ips через WG-интерфейс
-   - Замеряет ping_after → обновляет UI с разницей
-   - Запускает игру (если авто-запуск)
-4. **Во время сессии:**
-   - Замеры пинга каждые 5 сек → обновление UI
-   - Каждые 60 сек → push метрик в бэкенд
-   - **[НОВОЕ]** Мониторинг процесса игры — если игра закрыта, предложить остановить ускорение
-5. **Остановка:**
-   - Выключение туннеля
-   - Удаление маршрутов
-   - `POST /sessions/stop` с финальными метриками
-
-### 6.4. **[НОВОЕ]** Авто-детект игр
+### 6.3. Логика работы
 
 ```
-Клиент периодически (каждые 10 сек) проверяет список процессов Windows.
-Сопоставляет с базой GameProfile.executable_names[].
-При обнаружении → popup: "Обнаружена <Название игры>. Подключить ускорение?"
-Если пользователь включил авто-подключение → автоматический старт сессии.
+1. Запуск → проверка auth → загрузка игр + узлов из API
+
+2. Выбор игры → регион → "Играть с ускорением"
+
+3. POST /sessions/start → получаем:
+   - session_id
+   - primary node (ip, port)
+   - backup node для multipath (ip, port)
+   - game_ips (куда перехватывать трафик)
+
+4. WinDivert: ставим фильтр на game_ips + game_ports
+   Перехватываем исходящие UDP-пакеты
+
+5. Каждый перехваченный пакет:
+   → PLG header (session_id, seq++, flags, path_id=0)
+   → отправка на primary node :443/UDP
+   → если multipath: копия с path_id=1 на backup node
+
+6. Входящие пакеты от узлов:
+   → парсим PLG header
+   → дедупликация по seq_number
+   → извлекаем payload
+   → WinDivert inject обратно в сетевой стек
+
+7. Замер пинга: RTT до узла каждые 5 сек (keepalive пакеты с timestamps)
+
+8. Мониторинг процесса игры:
+   → если игра закрыта → popup "Остановить ускорение?"
+
+9. Остановка:
+   → снимаем WinDivert фильтр
+   → POST /sessions/stop с метриками
+```
+
+### 6.4. Авто-детект игр
+
+```
+Каждые 10 сек: EnumProcesses() через Windows API
+Сопоставляем с GameProfile.executable_names[]
+Найдена игра → popup "Обнаружена CS2. Подключить ускорение?"
+Авто-режим → автоматический старт сессии
 ```
 
 ---
@@ -487,42 +579,40 @@ def select_best_node(game_id: str, preferred_region: str | None) -> Node:
 ### 7.1. Технология
 - Next.js 14+ (App Router)
 - Tailwind CSS
-- **[НОВОЕ]** i18n: RU (основной) / EN
-- **[НОВОЕ]** SEO-оптимизация для запросов "игровой ускоритель", "снизить пинг", "обход блокировок игр"
+- i18n: RU (основной) / EN
+- SEO: "игровой ускоритель", "снизить пинг в играх", "PLGames Booster"
 
 ### 7.2. Блоки
 
 #### Hero
-- Заголовок: **"Низкий пинг и доступ к любым играм — без блокировок"**
-- Подзаголовок: "Игровой ускоритель PLGames Booster UP с узлами в Германии, Швеции, США и Латвии. Оптимальный маршрут для геймеров из России и СНГ."
-- Кнопки: "Скачать для Windows", "7 дней бесплатно"
-- **[НОВОЕ]** Мини speed-test: "Проверить свой пинг" (WebSocket пинг до наших узлов прямо на странице)
+- Заголовок: **"Стабильный пинг в любой игре"**
+- Подзаголовок: "Игровой ускоритель с узлами в Европе и США. Оптимальный маршрут для вашего трафика — без потерь и задержек."
+- Кнопки: "Скачать для Windows", "Попробовать бесплатно"
+- Мини speed-test: пинг до наших узлов в реальном времени
 
 #### Как это работает
 - Схема: `Твой ПК → Наш узел → Игровой сервер`
 - 3 шага:
   1. Выбираешь игру и регион
-  2. Мы строим оптимальный маршрут трафика
-  3. Играешь с низким пингом и без блокировок
-- **[НОВОЕ]** Анимированная визуализация маршрута
+  2. Мы строим оптимальный маршрут для игрового трафика
+  3. Играешь со стабильным пингом
 
-#### **[НОВОЕ]** Benchmark-секция
+#### Benchmark-секция
 - "Средний результат наших пользователей:"
   - Пинг: 95ms → 32ms (-66%)
   - Потери: 3.2% → 0.1%
-- Кнопка "Проверить для своей игры"
 
 #### Поддерживаемые игры
-- Сетка логотипов: CS2, Dota 2, Valorant, LoL, Fortnite, PUBG, Apex Legends, Genshin Impact, etc.
-- "Работает с любыми онлайн-играми, оптимизировано для 50+"
+- Сетка логотипов: CS2, Dota 2, Valorant, LoL, Fortnite, PUBG, Apex, Genshin Impact...
+- "Оптимизировано для 50+ игр, работает с любыми онлайн-играми"
 
 #### Преимущества
-1. Низкий пинг (WireGuard, оптимизированный маршрут)
-2. Обход блокировок (узлы вне РФ)
-3. Не нагружает систему (Tauri, ~10 MB)
-4. **[НОВОЕ]** Только игровой трафик (split-tunnel — остальное без изменений)
-5. **[НОВОЕ]** Честный биллинг (отмена подписки в 1 клик)
-6. **[НОВОЕ]** 7 дней бесплатно без карты
+1. Низкий пинг (оптимальный маршрут через наши узлы)
+2. Мультипутевая маршрутизация (дупликация пакетов, как у GearUP)
+3. Не нагружает систему (лёгкий клиент ~15 MB)
+4. Только игровой трафик (split-tunnel)
+5. Прозрачный биллинг (отмена в 1 клик)
+6. Бесплатный пробный период
 
 #### Тарифы
 
@@ -530,65 +620,91 @@ def select_best_node(game_id: str, preferred_region: str | None) -> Node:
 |---|---|---|---|---|
 | Цена | $0 | $5.99/мес | $4.99/мес | $3.99/мес |
 | Длительность | 7 дней | 1 мес | 3 мес | 12 мес |
-| Узлы | Все | Все | Все | Все |
-| Игры | Все | Все | Все | Все |
+| Все узлы | Да | Да | Да | Да |
+| Multipath | Нет | Да | Да | Да |
 | Одновременных устройств | 1 | 2 | 2 | 3 |
-| Приоритетный саппорт | Нет | Нет | Да | Да |
+| Приоритетная поддержка | Нет | Нет | Да | Да |
 
-**[НОВОЕ]** Оплата:
-- Карта (Stripe)
-- **Robokassa** (для РФ)
-- **Криптовалюта** (USDT, BTC) через Cryptomus
-- **[НОВОЕ]** СБП (через Robokassa)
+**Оплата: DonatePay** (карты, СБП, другие методы через DonatePay)
 
 #### FAQ
-1. "Это VPN?" → Нет, мы маршрутизируем только игровой трафик. Меньше потерь, ниже пинг, остальной трафик не затрагивается.
-2. "За это банят?" → Ускоритель не модифицирует игру и не даёт преимуществ. Это легальный инструмент оптимизации сети.
-3. "Какие платформы?" → Windows (сейчас), Android и Telegram-бот (скоро).
-4. **[НОВОЕ]** "Как отменить подписку?" → В личном кабинете одной кнопкой. Никаких скрытых условий.
-5. **[НОВОЕ]** "Работает ли в РФ?" → Да, сервис создан для геймеров из РФ и СНГ.
+1. "Это VPN?" → Нет, мы оптимизируем маршрут только для игрового трафика. Остальной интернет не затрагивается.
+2. "За это банят?" → Ускоритель не модифицирует игру. Это оптимизация сети, а не чит.
+3. "Какие платформы?" → Windows сейчас, Android скоро.
+4. "Как отменить подписку?" → В личном кабинете одной кнопкой.
+
+#### Наши проекты
+- Блок со ссылками на другие проекты команды (TBD — будут добавлены)
 
 #### Footer
 - Контакты (email, Telegram)
+- **Поддержка** — ссылка на наш проект поддержки (TBD)
 - Политика конфиденциальности
 - Оферта
-- **[НОВОЕ]** Telegram-канал с новостями
-- **[НОВОЕ]** Discord-сервер
+- Telegram-канал
+- Discord-сервер
+- **Наши проекты** — ссылки (TBD)
 
 ---
 
-## 8. Производительность и качество
+## 8. Оплата: DonatePay
+
+### Интеграция
+
+```
+1. Пользователь выбирает тариф → POST /api/v1/payments/create
+2. Бэкенд генерирует ссылку/форму DonatePay с суммой и metadata
+3. Пользователь оплачивает через DonatePay (карта, СБП, etc.)
+4. DonatePay отправляет webhook → POST /api/v1/payments/webhook
+5. Бэкенд валидирует подпись, активирует/продлевает подписку
+6. Пользователю обновляется план
+```
+
+### Webhook обработка
+```python
+@router.post("/api/v1/payments/webhook")
+async def donatepay_webhook(request: Request):
+    data = await request.json()
+    # Валидация подписи DonatePay
+    # Извлечение: сумма, user_id (из metadata), plan
+    # Создание/продление Subscription
+    # Уведомление пользователя
+```
+
+---
+
+## 9. Производительность
 
 ### Протокол
-- WireGuard — минимальный оверхед (~1-3ms), ядерный модуль
-- **[НОВОЕ]** На v2: рассмотреть надстройку для packet redundancy (дупликация UDP-пакетов по альтернативным путям, как у GearUP AIR)
+- PLG Protocol: **10 bytes overhead, ~0.1-0.3ms задержка**
+- Без шифрования = минимальная нагрузка на CPU
+- Multipath: дупликация критичных пакетов через 2 узла
 
 ### Split-tunneling
-- Только игровые IP через туннель (из GameProfile.cidrs)
-- Остальной трафик — напрямую
-- **[НОВОЕ]** DNS-запросы игр тоже через туннель (предотвращение DNS-leak для обхода блокировок)
+- WinDivert перехватывает ТОЛЬКО пакеты к game IPs
+- Остальной трафик идёт напрямую — без изменений
+- DNS-запросы игр тоже через relay (предотвращение leak)
 
 ### Выбор узла
-1. Предпочтение пользователя (если указано)
+1. Предпочтение пользователя
 2. Рекомендация профиля игры
-3. Метрики: RTT, loss, загрузка — лучший из доступных
-4. **[НОВОЕ]** Fallback: если выбранный узел деградировал — автоматическое предложение переключиться
+3. Метрики: RTT, loss, загрузка → лучший
+4. Fallback: деградация узла → предложение переключиться
 
-### **[НОВОЕ]** Защита от блокировок
-- Мониторинг доступности WireGuard из РФ
-- Подготовка obfuscation-слоя (obfs4/shadowsocks wrapper) на случай блокировки
-- Альтернативные порты (443/UDP, 80/UDP) для маскировки трафика
+### Устойчивость
+- Порт 443/UDP — не блокируется (QUIC-трафик легитимен)
+- Нет VPN-сигнатуры — DPI не определяет
+- Пул резервных IP на случай блокировки конкретных адресов
+- WireGuard + obfs4 как крайний fallback
 
 ---
 
-## 9. Безопасность
+## 10. Безопасность
 
-### **[НОВОЕ]** Раздел безопасности
-
-1. **Хранение ключей:** Приватные ключи WireGuard клиента генерируются на клиенте и НЕ отправляются на сервер. Сервер получает только публичный ключ.
-2. **JWT:** Access token — 15 min, Refresh token — 7 дней, httpOnly cookie.
-3. **Rate limiting:** API endpoints защищены через Redis-based rate limiter.
-4. **Пароли:** bcrypt с cost=12.
-5. **Секреты:** Все ключи в .env, не в коде. Docker secrets на проде.
-6. **Логирование:** Не логируем игровой трафик пользователей. Только метаданные сессий.
-7. **GDPR/ФЗ-152:** Минимальный сбор данных. Возможность удаления аккаунта.
+1. **JWT:** Access 15min, Refresh 7d, httpOnly cookie
+2. **Пароли:** bcrypt cost=12
+3. **Rate limiting:** Redis-based
+4. **API агентов:** API-key между бэкендом и gateway-агентами
+5. **Секреты:** .env, Docker secrets
+6. **Логирование:** Не логируем игровой трафик. Только метаданные сессий
+7. **Данные:** Минимальный сбор. Возможность удаления аккаунта
