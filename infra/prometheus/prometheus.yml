@@ -3,20 +3,47 @@ global:
   evaluation_interval: 30s
 
 scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
   # API server metrics
   - job_name: "plgames-api"
     static_configs:
       - targets: ["api:8000"]
     metrics_path: /api/metrics
 
-  # Gateway nodes (PLG Relay + Agent)
-  # Update IPs after server provisioning
-  - job_name: "gateway-nodes"
+  # PLG Relay — DE (Frankfurt, this host)
+  - job_name: "plgames-relay-de"
     static_configs:
-      - targets: []
-        # - "RELAY_DE_IP:9100"
-        # - "RELAY_SE_IP:9100"
-        # - "RELAY_US_IP:9100"
-        # - "RELAY_LV_IP:9100"
-    labels:
-      service: "gateway"
+      - targets: ["host.docker.internal:9090"]
+        labels:
+          region: "de"
+          location: "frankfurt"
+    metrics_path: /metrics
+
+  # PLG Relay — future nodes (uncomment after provisioning)
+  # - job_name: "plgames-relay-se"
+  #   static_configs:
+  #     - targets: ["RELAY_SE_IP:9090"]
+  #       labels:
+  #         region: "se"
+  #         location: "stockholm"
+  #   metrics_path: /metrics
+
+  # - job_name: "plgames-relay-us"
+  #   static_configs:
+  #     - targets: ["RELAY_US_IP:9090"]
+  #       labels:
+  #         region: "us"
+  #         location: "new-york"
+  #   metrics_path: /metrics
+
+  # - job_name: "plgames-relay-lv"
+  #   static_configs:
+  #     - targets: ["RELAY_LV_IP:9090"]
+  #       labels:
+  #         region: "lv"
+  #         location: "riga"
+  #   metrics_path: /metrics

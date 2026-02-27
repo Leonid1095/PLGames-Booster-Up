@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine
 from app.routers import auth_router, games_router, nodes_router, sessions_router, users_router
+from app.utils.metrics import MetricsMiddleware
 from app.utils.rate_limit import RateLimitMiddleware
 
 
@@ -43,5 +44,5 @@ async def health():
     return {"status": "ok", "version": "0.1.0"}
 
 
-# Production ASGI app with rate limiting
-app = RateLimitMiddleware(fastapi_app)
+# Production ASGI app: metrics → rate limiting → FastAPI
+app = MetricsMiddleware(RateLimitMiddleware(fastapi_app))
