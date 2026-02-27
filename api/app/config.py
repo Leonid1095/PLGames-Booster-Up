@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     # DonatePay
     donatepay_api_key: str = ""
     donatepay_webhook_secret: str = ""
+    donatepay_page_url: str = ""
 
     # Domain
     domain: str = ""

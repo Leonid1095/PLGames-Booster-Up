@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -56,6 +58,8 @@ async def test_user(db_session: AsyncSession):
         email="fixture@test.com",
         username="fixtureuser",
         password_hash=hash_password("testpass123"),
+        subscription_tier="monthly",
+        subscription_expires_at=datetime.now(timezone.utc) + timedelta(days=30),
     )
     db_session.add(user)
     await db_session.commit()

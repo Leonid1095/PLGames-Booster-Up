@@ -12,7 +12,7 @@ from app.schemas.session import (
     SessionStopResponse,
 )
 from app.services.session_service import start_session, stop_session
-from app.utils.dependencies import get_current_user
+from app.utils.dependencies import get_current_user, get_subscribed_user
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 @router.post("/start", response_model=SessionStartResponse, status_code=status.HTTP_201_CREATED)
 async def create_session(
     body: SessionStartRequest,
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_subscribed_user),
     db: AsyncSession = Depends(get_db),
 ):
     try:
