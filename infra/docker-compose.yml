@@ -58,7 +58,7 @@ services:
       context: ../web
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:18000
+        NEXT_PUBLIC_API_URL: https://plgames-boost.duckdns.org
     container_name: plgames-web
     restart: unless-stopped
     ports:
