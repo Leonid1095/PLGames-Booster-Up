@@ -34,10 +34,23 @@ class Settings(BaseSettings):
     # Domain
     domain: str = ""
 
+    # Relay node IPs (for seed data)
+    relay_de_public_ip: str = ""
+    relay_se_public_ip: str = ""
+    relay_us_public_ip: str = ""
+    relay_lv_public_ip: str = ""
+
     @property
     def database_url(self) -> str:
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+        )
+
+    @property
+    def database_url_sync(self) -> str:
+        return (
+            f"postgresql+psycopg2://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
