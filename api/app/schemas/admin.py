@@ -134,6 +134,8 @@ class AdminSessionResponse(BaseModel):
     bytes_received: int
     avg_ping: float | None
     packet_loss: float | None
+    backup_node_id: uuid.UUID | None = None
+    multipath_enabled: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

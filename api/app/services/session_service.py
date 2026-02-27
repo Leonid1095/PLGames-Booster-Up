@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.game_profile import GameProfile
 from app.models.node import Node
 from app.models.session import Session
+from app.services.node_service import find_backup_node
 from app.services.relay_client import register_session_on_relay, unregister_session_on_relay
 
 
@@ -20,6 +21,7 @@ async def start_session(
     user_id: str,
     game_slug: str,
     node_id: str,
+    multipath: bool = False,
 ) -> Session:
     # Find game profile
     result = await db.execute(
@@ -50,6 +52,15 @@ async def start_session(
 
     # Generate token and create session
     session_token = generate_session_token()
+
+    # Multipath: find backup node
+    backup_node = None
+    multipath_enabled = False
+    if multipath:
+        backup_node = await find_backup_node(db, node.id, node.location)
+        if backup_node:
+            multipath_enabled = True
+
     session = Session(
         user_id=user_id,
         node_id=node_id,
@@ -57,12 +68,14 @@ async def start_session(
         session_token=session_token,
         status="active",
         started_at=datetime.now(timezone.utc),
+        backup_node_id=backup_node.id if backup_node else None,
+        multipath_enabled=multipath_enabled,
     )
     db.add(session)
     await db.commit()
     await db.refresh(session)
 
-    # Register on relay (best-effort, don't fail session creation)
+    # Register on primary relay (best-effort)
     await register_session_on_relay(
         node_ip=node.ip_address,
         relay_api_port=node.relay_api_port,
@@ -70,6 +83,16 @@ async def start_session(
         game_server_ips=game.server_ips,
         game_ports=game.ports,
     )
+
+    # Register on backup relay if multipath
+    if backup_node:
+        await register_session_on_relay(
+            node_ip=backup_node.ip_address,
+            relay_api_port=backup_node.relay_api_port,
+            session_token=session_token,
+            game_server_ips=game.server_ips,
+            game_ports=game.ports,
+        )
 
     return session
 
@@ -104,5 +127,16 @@ async def stop_session(
             relay_api_port=node.relay_api_port,
             session_token=session.session_token,
         )
+
+    # Unregister from backup relay if multipath
+    if session.backup_node_id:
+        result = await db.execute(select(Node).where(Node.id == session.backup_node_id))
+        backup_node = result.scalar_one_or_none()
+        if backup_node:
+            await unregister_session_on_relay(
+                node_ip=backup_node.ip_address,
+                relay_api_port=backup_node.relay_api_port,
+                session_token=session.session_token,
+            )
 
     return session

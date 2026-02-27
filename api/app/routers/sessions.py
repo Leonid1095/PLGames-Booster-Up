@@ -29,6 +29,7 @@ async def create_session(
             user_id=str(user.id),
             game_slug=body.game_slug,
             node_id=str(body.node_id),
+            multipath=body.multipath,
         )
     except ValueError as e:
         raise HTTPException(
@@ -41,11 +42,24 @@ async def create_session(
     result = await db.execute(select(Node).where(Node.id == session.node_id))
     node = result.scalar_one()
 
+    # Load backup node if multipath
+    backup_node_ip = None
+    backup_node_port = None
+    if session.backup_node_id:
+        result = await db.execute(select(Node).where(Node.id == session.backup_node_id))
+        backup_node = result.scalar_one_or_none()
+        if backup_node:
+            backup_node_ip = backup_node.ip_address
+            backup_node_port = backup_node.relay_port
+
     return SessionStartResponse(
         session_id=session.id,
         session_token=session.session_token,
         node_ip=node.ip_address,
         node_port=node.relay_port,
+        backup_node_ip=backup_node_ip,
+        backup_node_port=backup_node_port,
+        multipath_enabled=session.multipath_enabled,
         status=session.status,
     )
 
@@ -111,6 +125,7 @@ async def session_history(
             avg_ping=s.avg_ping,
             bytes_sent=s.bytes_sent,
             bytes_received=s.bytes_received,
+            multipath_enabled=s.multipath_enabled,
         ))
 
     return items

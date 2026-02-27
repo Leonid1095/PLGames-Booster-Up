@@ -17,4 +17,4 @@ class Node(BaseModel):
     relay_port: Mapped[int] = mapped_column(Integer, default=443)
     relay_api_port: Mapped[int] = mapped_column(Integer, default=8443)
 
-    sessions = relationship("Session", back_populates="node", lazy="selectin")
+    sessions = relationship("Session", foreign_keys="[Session.node_id]", back_populates="node", lazy="selectin")

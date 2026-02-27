@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import BaseModel
@@ -25,7 +25,10 @@ class Session(BaseModel):
     bytes_received: Mapped[int] = mapped_column(BigInteger, default=0)
     avg_ping: Mapped[float | None] = mapped_column(Float, nullable=True)
     packet_loss: Mapped[float | None] = mapped_column(Float, nullable=True)
+    backup_node_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("nodes.id"), nullable=True)
+    multipath_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
 
     user = relationship("User", back_populates="sessions")
-    node = relationship("Node", back_populates="sessions")
+    node = relationship("Node", foreign_keys=[node_id], back_populates="sessions")
+    backup_node = relationship("Node", foreign_keys=[backup_node_id])
     game_profile = relationship("GameProfile", back_populates="sessions")

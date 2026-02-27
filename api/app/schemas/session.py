@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class SessionStartRequest(BaseModel):
     game_slug: str
     node_id: uuid.UUID
+    multipath: bool = False
 
 
 class SessionStartResponse(BaseModel):
@@ -14,6 +15,9 @@ class SessionStartResponse(BaseModel):
     session_token: int
     node_ip: str
     node_port: int
+    backup_node_ip: str | None = None
+    backup_node_port: int | None = None
+    multipath_enabled: bool = False
     status: str
 
 
@@ -39,5 +43,6 @@ class SessionHistoryItem(BaseModel):
     avg_ping: float | None
     bytes_sent: int
     bytes_received: int
+    multipath_enabled: bool = False
 
     model_config = {"from_attributes": True}
