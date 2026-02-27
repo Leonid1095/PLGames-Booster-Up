@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
-app = FastAPI(
+fastapi_app = FastAPI(
     title="PLGames Booster UP API",
     version="0.1.0",
     docs_url="/api/docs",
@@ -23,8 +23,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(RateLimitMiddleware)
-app.add_middleware(
+fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
@@ -32,13 +31,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth_router)
-app.include_router(games_router)
-app.include_router(nodes_router)
-app.include_router(sessions_router)
-app.include_router(users_router)
+fastapi_app.include_router(auth_router)
+fastapi_app.include_router(games_router)
+fastapi_app.include_router(nodes_router)
+fastapi_app.include_router(sessions_router)
+fastapi_app.include_router(users_router)
 
 
-@app.get("/api/health")
+@fastapi_app.get("/api/health")
 async def health():
     return {"status": "ok", "version": "0.1.0"}
+
+
+# Production ASGI app with rate limiting
+app = RateLimitMiddleware(fastapi_app)
