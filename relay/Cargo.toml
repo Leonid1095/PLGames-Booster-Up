@@ -15,4 +15,3 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 prometheus = "0.13"
 socket2 = { version = "0.5", features = ["all"] }
-config = "0.14"
