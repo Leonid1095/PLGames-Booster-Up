@@ -16,13 +16,31 @@ class PlanInfo(BaseModel):
 
 class CreatePaymentRequest(BaseModel):
     plan: str = Field(pattern=r"^(monthly|quarterly|yearly)$")
+    promo_code: str | None = None
 
 
 class PaymentLinkResponse(BaseModel):
     payment_id: uuid.UUID
     payment_url: str
     amount: Decimal
+    original_amount: Decimal | None = None
+    discount: Decimal | None = None
+    promo_code: str | None = None
     plan: str
+
+
+class PromoCheckRequest(BaseModel):
+    code: str
+    plan: str = Field(pattern=r"^(monthly|quarterly|yearly)$")
+
+
+class PromoCheckResponse(BaseModel):
+    valid: bool
+    code: str
+    discount_percent: int = 0
+    discount_amount: Decimal | None = None
+    final_price: Decimal | None = None
+    message: str = ""
 
 
 class SubscriptionResponse(BaseModel):

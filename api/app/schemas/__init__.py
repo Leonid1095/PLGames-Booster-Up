@@ -4,6 +4,8 @@ from app.schemas.billing import (
     PaymentHistoryItem,
     PaymentLinkResponse,
     PlanInfo,
+    PromoCheckRequest,
+    PromoCheckResponse,
     SubscriptionResponse,
     WebhookPayload,
 )
@@ -26,6 +28,8 @@ __all__ = [
     "PaymentHistoryItem",
     "PaymentLinkResponse",
     "PlanInfo",
+    "PromoCheckRequest",
+    "PromoCheckResponse",
     "SubscriptionResponse",
     "WebhookPayload",
     "GameListResponse",

@@ -15,6 +15,10 @@ class Payment(BaseModel):
     currency: Mapped[str] = mapped_column(String(10), default="RUB")
     status: Mapped[str] = mapped_column(String(20), default="pending")
     plan: Mapped[str] = mapped_column(String(20))
+    promo_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    original_amount: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 2), nullable=True
+    )
     donatepay_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     donatepay_comment: Mapped[str | None] = mapped_column(String(500), nullable=True)
     subscription_id: Mapped[uuid.UUID | None] = mapped_column(

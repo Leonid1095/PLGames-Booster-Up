@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.payment import Payment
+from app.models.promo_code import PromoCode
 from app.models.subscription import Subscription
 from app.models.user import User
 from app.schemas.billing import PlanInfo
@@ -25,22 +26,22 @@ PLANS: dict[str, PlanInfo] = {
     "monthly": PlanInfo(
         name="Monthly",
         tier="monthly",
-        price_monthly=Decimal("5.99"),
-        price_total=Decimal("5.99"),
+        price_monthly=Decimal("299"),
+        price_total=Decimal("299"),
         duration_days=30,
     ),
     "quarterly": PlanInfo(
         name="Quarterly",
         tier="quarterly",
-        price_monthly=Decimal("4.99"),
-        price_total=Decimal("14.97"),
+        price_monthly=Decimal("250"),
+        price_total=Decimal("749"),
         duration_days=90,
     ),
     "yearly": PlanInfo(
         name="Yearly",
         tier="yearly",
-        price_monthly=Decimal("3.99"),
-        price_total=Decimal("47.88"),
+        price_monthly=Decimal("167"),
+        price_total=Decimal("1999"),
         duration_days=365,
     ),
 }
@@ -66,16 +67,79 @@ def calculate_expiry(plan: str, current_expires_at: datetime | None = None) -> d
     return base + timedelta(days=plan_info.duration_days)
 
 
+async def validate_promo(
+    db: AsyncSession, code: str, plan: str
+) -> PromoCode | None:
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        select(PromoCode).where(
+            PromoCode.code == code.upper(),
+            PromoCode.is_active == True,  # noqa: E712
+        )
+    )
+    promo = result.scalar_one_or_none()
+    if not promo:
+        return None
+    if promo.valid_from and promo.valid_from > now:
+        return None
+    if promo.valid_until and promo.valid_until < now:
+        return None
+    if promo.max_uses > 0 and promo.current_uses >= promo.max_uses:
+        return None
+    if promo.applicable_plans != "all":
+        allowed = [p.strip() for p in promo.applicable_plans.split(",")]
+        if plan not in allowed:
+            return None
+    return promo
+
+
+def apply_discount(price: Decimal, promo: PromoCode) -> Decimal:
+    if promo.discount_amount:
+        result = price - promo.discount_amount
+    elif promo.discount_percent > 0:
+        result = price * (100 - promo.discount_percent) / 100
+    else:
+        return price
+    return max(Decimal("1"), result.quantize(Decimal("1")))
+
+
+async def check_promo(
+    db: AsyncSession, code: str, plan: str
+) -> tuple[bool, str, Decimal | None, PromoCode | None]:
+    if plan not in PLANS or plan == "trial":
+        return False, "Invalid plan", None, None
+    promo = await validate_promo(db, code, plan)
+    if not promo:
+        return False, "Промокод недействителен", None, None
+    plan_info = PLANS[plan]
+    final = apply_discount(plan_info.price_total, promo)
+    return True, "OK", final, promo
+
+
 async def create_payment_link(
-    db: AsyncSession, user: User, plan: str
+    db: AsyncSession, user: User, plan: str, promo_code: str | None = None
 ) -> tuple[Payment, str]:
     if plan not in PLANS or plan == "trial":
         raise ValueError(f"Invalid plan: {plan}")
 
     plan_info = PLANS[plan]
+    amount = plan_info.price_total
+    original_amount = None
+    applied_promo = None
+
+    if promo_code:
+        promo = await validate_promo(db, promo_code, plan)
+        if promo:
+            original_amount = amount
+            amount = apply_discount(amount, promo)
+            applied_promo = promo.code
+            promo.current_uses += 1
+
     payment = Payment(
         user_id=user.id,
-        amount=plan_info.price_total,
+        amount=amount,
+        original_amount=original_amount,
+        promo_code=applied_promo,
         currency="RUB",
         status="pending",
         plan=plan,
@@ -87,7 +151,7 @@ async def create_payment_link(
 
     page_url = settings.donatepay_page_url or "https://new.donatepay.ru/@plgames"
     comment = quote(f"PLG:{payment.id}")
-    payment_url = f"{page_url}?comment={comment}&sum={plan_info.price_total}"
+    payment_url = f"{page_url}?comment={comment}&sum={amount}"
 
     return payment, payment_url
 

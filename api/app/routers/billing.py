@@ -10,6 +10,8 @@ from app.schemas.billing import (
     PaymentHistoryItem,
     PaymentLinkResponse,
     PlanInfo,
+    PromoCheckRequest,
+    PromoCheckResponse,
     SubscriptionResponse,
 )
 from app.services import billing_service
@@ -31,16 +33,22 @@ async def subscribe(
 ):
     try:
         payment, payment_url = await billing_service.create_payment_link(
-            db, user, body.plan
+            db, user, body.plan, promo_code=body.promo_code
         )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         )
+    discount = None
+    if payment.original_amount:
+        discount = payment.original_amount - payment.amount
     return PaymentLinkResponse(
         payment_id=payment.id,
         payment_url=payment_url,
         amount=payment.amount,
+        original_amount=payment.original_amount,
+        discount=discount,
+        promo_code=payment.promo_code,
         plan=payment.plan,
     )
 
@@ -66,6 +74,24 @@ async def activate_trial(
         is_active=sub.is_active,
         cancelled_at=sub.cancelled_at,
         days_remaining=days,
+    )
+
+
+@router.post("/promo/check", response_model=PromoCheckResponse)
+async def check_promo(
+    body: PromoCheckRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    valid, message, final_price, promo = await billing_service.check_promo(
+        db, body.code, body.plan
+    )
+    return PromoCheckResponse(
+        valid=valid,
+        code=body.code.upper(),
+        discount_percent=promo.discount_percent if promo else 0,
+        discount_amount=promo.discount_amount if promo else None,
+        final_price=final_price,
+        message=message,
     )
 
 
