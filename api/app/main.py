@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import engine
-from app.routers import auth_router, billing_router, games_router, nodes_router, sessions_router, users_router
+from app.routers import admin_router, auth_router, billing_router, games_router, nodes_router, sessions_router, users_router
 from app.utils.metrics import MetricsMiddleware
 from app.utils.rate_limit import RateLimitMiddleware
 
@@ -32,6 +32,7 @@ fastapi_app.add_middleware(
     allow_headers=["*"],
 )
 
+fastapi_app.include_router(admin_router)
 fastapi_app.include_router(auth_router)
 fastapi_app.include_router(billing_router)
 fastapi_app.include_router(games_router)

@@ -10,6 +10,9 @@ from app.main import fastapi_app
 from app.models import Base
 from app.models.game_profile import GameProfile
 from app.models.node import Node
+from app.models.payment import Payment
+from app.models.promo_code import PromoCode
+from app.models.subscription import Subscription
 from app.models.user import User
 from app.services.auth_service import create_access_token, hash_password
 
@@ -71,6 +74,74 @@ async def test_user(db_session: AsyncSession):
 async def auth_headers(test_user: User):
     token = create_access_token(str(test_user.id))
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def admin_user(db_session: AsyncSession):
+    user = User(
+        email="admin@test.com",
+        username="adminuser",
+        password_hash=hash_password("adminpass123"),
+        subscription_tier="free",
+        is_admin=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def admin_headers(admin_user: User):
+    token = create_access_token(str(admin_user.id))
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def seed_subscription(db_session: AsyncSession, test_user: User):
+    sub = Subscription(
+        user_id=test_user.id,
+        tier="monthly",
+        plan="monthly",
+        started_at=datetime.now(timezone.utc),
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+        is_active=True,
+    )
+    db_session.add(sub)
+    await db_session.commit()
+    await db_session.refresh(sub)
+    return sub
+
+
+@pytest_asyncio.fixture
+async def seed_payment(db_session: AsyncSession, test_user: User):
+    from decimal import Decimal
+    payment = Payment(
+        user_id=test_user.id,
+        amount=Decimal("299.00"),
+        currency="RUB",
+        status="completed",
+        plan="monthly",
+    )
+    db_session.add(payment)
+    await db_session.commit()
+    await db_session.refresh(payment)
+    return payment
+
+
+@pytest_asyncio.fixture
+async def seed_promo(db_session: AsyncSession):
+    promo = PromoCode(
+        code="TEST20",
+        discount_percent=20,
+        max_uses=100,
+        current_uses=5,
+        is_active=True,
+    )
+    db_session.add(promo)
+    await db_session.commit()
+    await db_session.refresh(promo)
+    return promo
 
 
 @pytest_asyncio.fixture

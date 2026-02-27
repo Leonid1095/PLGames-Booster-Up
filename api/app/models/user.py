@@ -19,6 +19,7 @@ class User(BaseModel):
         DateTime(timezone=True), nullable=True
     )
     trial_used: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     sessions = relationship("Session", back_populates="user", lazy="selectin")
     subscriptions = relationship("Subscription", back_populates="user", lazy="selectin")

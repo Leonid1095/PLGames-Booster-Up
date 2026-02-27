@@ -10,6 +10,7 @@ class UserResponse(BaseModel):
     username: str
     subscription_tier: str
     subscription_expires_at: datetime | None
+    is_admin: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
