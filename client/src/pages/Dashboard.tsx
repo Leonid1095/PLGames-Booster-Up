@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { listen } from "@tauri-apps/api/event";
 import Titlebar from "../components/Titlebar";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import * as api from "../lib/api";
-import type { User, GameProfile, NodeInfo, BoostStatus } from "../lib/types";
+import type { User, GameProfile, NodeInfo, BoostStatus, SmartGameDetectedPayload, SmartAutoConnectedPayload, SmartBestNodePayload } from "../lib/types";
 import { TIER_NAMES } from "../lib/types";
 import { formatBytes } from "../lib/utils";
 
@@ -20,9 +21,12 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [sessionTime, setSessionTime] = useState(0);
   const [pingHistory, setPingHistory] = useState<number[]>([]);
+  const [smartNotification, setSmartNotification] = useState<string | null>(null);
+  const [detectedGame, setDetectedGame] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionStartRef = useRef<number>(0);
+  const smartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     api
@@ -54,11 +58,72 @@ export default function Dashboard() {
       }
     });
 
+    // Smart monitor event listeners
+    const unlisteners: (() => void)[] = [];
+
+    listen<SmartGameDetectedPayload>("smart:game-detected", (event) => {
+      const { game, best_node, auto_connecting } = event.payload;
+      setSelectedGame(game);
+      sessionStorage.setItem("selectedGame", JSON.stringify(game));
+      if (best_node) {
+        setSelectedNode(best_node);
+      }
+      setDetectedGame(game.name);
+      showSmartNotification(
+        auto_connecting
+          ? `Обнаружена ${game.name} — автоподключение...`
+          : `Обнаружена ${game.name}`
+      );
+    }).then((u) => unlisteners.push(u));
+
+    listen<SmartAutoConnectedPayload>("smart:auto-connected", (event) => {
+      const { game_name, node_name } = event.payload;
+      showSmartNotification(`${game_name} — подключен через ${node_name}`);
+      // Refresh boost status
+      api.getBoostStatus().then((s) => {
+        if (s.connected) {
+          setBoost(s);
+          startPolling();
+          startTimer();
+        }
+      });
+    }).then((u) => unlisteners.push(u));
+
+    listen("smart:game-closed", () => {
+      setDetectedGame(null);
+      showSmartNotification("Игра закрыта");
+    }).then((u) => unlisteners.push(u));
+
+    listen("smart:auto-disconnected", () => {
+      showSmartNotification("Автоотключение — игра завершена");
+      api.getBoostStatus().then((s) => {
+        setBoost(s);
+        if (!s.connected) {
+          stopPolling();
+          stopTimer();
+        }
+      });
+    }).then((u) => unlisteners.push(u));
+
+    listen<SmartBestNodePayload>("smart:best-node", (event) => {
+      const { node, ping_ms } = event.payload;
+      setSelectedNode(node);
+      showSmartNotification(`Лучший узел: ${node.name} (${Math.round(ping_ms)} ms)`);
+    }).then((u) => unlisteners.push(u));
+
     return () => {
       stopPolling();
       stopTimer();
+      unlisteners.forEach((u) => u());
+      if (smartTimerRef.current) clearTimeout(smartTimerRef.current);
     };
   }, [navigate]);
+
+  const showSmartNotification = useCallback((msg: string) => {
+    setSmartNotification(msg);
+    if (smartTimerRef.current) clearTimeout(smartTimerRef.current);
+    smartTimerRef.current = setTimeout(() => setSmartNotification(null), 5000);
+  }, []);
 
   const startPolling = useCallback(() => {
     if (pollRef.current) return;
@@ -186,7 +251,27 @@ export default function Dashboard() {
   return (
     <>
       <Titlebar />
+      {/* Smart notification toast */}
+      {smartNotification && (
+        <div className="fixed top-10 left-1/2 -translate-x-1/2 z-40 animate-slideDown">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand/90 text-white text-xs font-medium shadow-lg backdrop-blur-sm">
+            <div className="w-2 h-2 rounded-full bg-white/80 animate-pulse" />
+            {smartNotification}
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {/* Detected game indicator */}
+        {detectedGame && !isConnected && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-xs text-green-400">
+              Обнаружена: {detectedGame}
+            </span>
+          </div>
+        )}
+
         {/* User info */}
         <Card className="!p-3">
           <div className="flex items-center justify-between">

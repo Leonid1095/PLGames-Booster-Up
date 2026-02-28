@@ -4,6 +4,7 @@ mod commands;
 mod config;
 mod game_detector;
 mod protocol;
+mod smart_monitor;
 mod tray;
 mod udp_proxy;
 
@@ -47,6 +48,9 @@ pub fn run() {
             if let Err(e) = tray::setup_tray(app.handle()) {
                 log::error!("Failed to setup tray: {}", e);
             }
+
+            // Start smart game monitor
+            smart_monitor::start_smart_monitor(app.handle());
 
             // DevTools in debug mode
             #[cfg(debug_assertions)]

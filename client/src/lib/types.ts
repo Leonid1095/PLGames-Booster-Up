@@ -124,6 +124,25 @@ export interface AppSettings {
   minimize_to_tray: boolean;
 }
 
+// ── Smart Monitor Events ────────────────────────────────────────────
+
+export interface SmartGameDetectedPayload {
+  game: GameProfile;
+  best_node: NodeInfo | null;
+  auto_connecting: boolean;
+}
+
+export interface SmartAutoConnectedPayload {
+  game_name: string;
+  node_name: string;
+  local_port: number;
+}
+
+export interface SmartBestNodePayload {
+  node: NodeInfo;
+  ping_ms: number;
+}
+
 // ── Subscription tiers ──────────────────────────────────────────────
 
 export const TIER_NAMES: Record<string, string> = {
