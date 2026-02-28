@@ -44,7 +44,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "RWQE+rgZJn8cQh2KNm76xmZyLy9pV8Ww0TNWuYoZQ75Wbt2JwtBW9eqW",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE5MkZFNTY3REUyMDE1MTUKUldRVkZTRGVaK1V2cWRCd1ZBZVVqdzNRSlBySnRFUXhuOW5YWmFJTTFiRkRCS2dheWdtcVl5NTYK",
       "endpoints": [
         "https://github.com/Leonid1095/PLGames-Booster-Up/releases/latest/download/latest.json"
       ]
