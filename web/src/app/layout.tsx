@@ -16,6 +16,12 @@ export const metadata: Metadata = {
     'Игровой бустер нового поколения. PLG Protocol снижает пинг и стабилизирует соединение для онлайн-игр.',
   keywords: ['игровой бустер', 'снижение пинга', 'PLG Protocol', 'онлайн игры', 'оптимизация маршрутов'],
   robots: { index: true, follow: true },
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
