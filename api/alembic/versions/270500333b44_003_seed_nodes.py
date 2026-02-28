@@ -39,7 +39,7 @@ NODES = [
         'name': 'Frankfurt DE',
         'location': 'DE',
         'city': 'Frankfurt',
-        'ip_address': '93.183.70.55',
+        'ip_address': '0.0.0.0',  # Set real IP via admin API after deploy
         'relay_port': 443,
         'relay_api_port': 8443,
     },

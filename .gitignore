@@ -19,6 +19,10 @@ out/
 
 # Tauri / Rust
 client/src-tauri/target/
+relay/target/
+
+# Claude Code
+.claude/
 
 # IDE
 .vscode/

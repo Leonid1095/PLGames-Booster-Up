@@ -190,7 +190,7 @@ async def seed_node(db_session: AsyncSession):
         name="Test Frankfurt",
         location="DE",
         city="Frankfurt",
-        ip_address="93.183.70.55",
+        ip_address="10.0.0.1",
         status="active",
         current_load=0,
         max_sessions=1000,
