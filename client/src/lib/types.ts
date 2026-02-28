@@ -29,6 +29,7 @@ export interface GameProfile {
   protocol: string;
   category: string;
   is_popular: boolean;
+  icon_url: string | null;
   created_at: string;
 }
 

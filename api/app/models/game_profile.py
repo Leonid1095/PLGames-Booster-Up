@@ -1,3 +1,5 @@
+from typing import Optional
+
 from sqlalchemy import Boolean, String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,5 +18,6 @@ class GameProfile(BaseModel):
     protocol: Mapped[str] = mapped_column(String(10), default="UDP")
     category: Mapped[str] = mapped_column(String(50), default="fps")
     is_popular: Mapped[bool] = mapped_column(Boolean, default=False)
+    icon_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, default=None)
 
     sessions = relationship("Session", back_populates="game_profile", lazy="selectin")

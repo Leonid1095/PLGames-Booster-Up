@@ -89,10 +89,19 @@ export default function GameSelect() {
               onClick={() => selectGame(game)}
               className="w-full flex items-center gap-3 p-3 rounded-lg bg-surface-card border border-surface-border hover:border-brand/50 hover:bg-surface-card-hover transition-all duration-200 text-left"
             >
-              <div className="w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center shrink-0">
-                <span className="text-brand text-xs font-bold">
-                  {game.name.substring(0, 2).toUpperCase()}
-                </span>
+              <div className="w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center shrink-0 overflow-hidden">
+                {game.icon_url ? (
+                  <img
+                    src={game.icon_url}
+                    alt={game.name}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <span className="text-brand text-xs font-bold">
+                    {game.name.substring(0, 2).toUpperCase()}
+                  </span>
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-text-primary text-sm truncate">
