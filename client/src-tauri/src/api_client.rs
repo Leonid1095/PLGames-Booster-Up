@@ -115,6 +115,16 @@ pub struct SessionHistoryItem {
     pub multipath_enabled: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrialResponse {
+    pub tier: String,
+    pub plan: String,
+    pub started_at: Option<String>,
+    pub expires_at: Option<String>,
+    pub is_active: bool,
+    pub days_remaining: i64,
+}
+
 // ── API Error ───────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -347,6 +357,19 @@ impl ApiClient {
         let resp = self
             .client
             .get(self.url("/api/sessions/history"))
+            .bearer_auth(token)
+            .send()
+            .await?;
+
+        self.handle_response(resp).await
+    }
+
+    // ── Billing ──────────────────────────────────────────────────
+
+    pub async fn activate_trial(&self, token: &str) -> Result<TrialResponse, ApiError> {
+        let resp = self
+            .client
+            .post(self.url("/api/billing/trial"))
             .bearer_auth(token)
             .send()
             .await?;

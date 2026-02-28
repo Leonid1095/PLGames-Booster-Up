@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [pingHistory, setPingHistory] = useState<number[]>([]);
   const [smartNotification, setSmartNotification] = useState<string | null>(null);
   const [detectedGame, setDetectedGame] = useState<string | null>(null);
+  const [activatingTrial, setActivatingTrial] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionStartRef = useRef<number>(0);
@@ -194,9 +195,37 @@ export default function Dashboard() {
       startPolling();
       startTimer();
     } catch (e) {
-      setError(String(e));
+      const msg = String(e);
+      if (msg.includes("Active subscription required") || msg.includes("Subscription expired")) {
+        setError("Для подключения нужна активная подписка. Активируйте пробный период (7 дней бесплатно) или оформите подписку.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setConnecting(false);
+    }
+  };
+
+  const handleActivateTrial = async () => {
+    setActivatingTrial(true);
+    setError("");
+    try {
+      const resp = await api.activateTrial();
+      if (resp.is_active) {
+        // Refresh user to update tier badge
+        const updatedUser = await api.getUser();
+        setUser(updatedUser);
+        showSmartNotification(`Пробный период активирован! ${resp.days_remaining} дней`);
+      }
+    } catch (e) {
+      const msg = String(e);
+      if (msg.includes("already") || msg.includes("уже")) {
+        setError("Пробный период уже был использован. Оформите подписку для доступа.");
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setActivatingTrial(false);
     }
   };
 
@@ -286,6 +315,34 @@ export default function Dashboard() {
             </span>
           </div>
         </Card>
+
+        {/* Free tier banner */}
+        {user.subscription_tier === "free" && !isConnected && (
+          <Card className="!p-3 border-brand/30 bg-brand/5">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-brand/20 flex items-center justify-center shrink-0 mt-0.5">
+                <svg width="16" height="16" viewBox="0 0 16 16" className="text-brand">
+                  <path d="M8 1L10.2 5.5L15 6.2L11.5 9.6L12.4 14.4L8 12.1L3.6 14.4L4.5 9.6L1 6.2L5.8 5.5L8 1Z" fill="currentColor" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-text-primary mb-0.5">
+                  Активируйте пробный период
+                </p>
+                <p className="text-[10px] text-text-muted mb-2">
+                  7 дней бесплатного доступа ко всем функциям: оптимизация маршрутов, multipath и автоподключение
+                </p>
+                <button
+                  onClick={handleActivateTrial}
+                  disabled={activatingTrial}
+                  className="px-3 py-1.5 rounded-lg bg-brand text-white text-xs font-medium hover:bg-brand-light transition-colors disabled:opacity-50"
+                >
+                  {activatingTrial ? "Активация..." : "Попробовать бесплатно"}
+                </button>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Connection status circle */}
         <Card className="text-center !p-4">

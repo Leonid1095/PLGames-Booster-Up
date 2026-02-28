@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
-use tokio::time::{interval, Duration};
+use tokio::time::{self, Duration};
 
 use crate::api_client::{ApiClient, GameProfile, NodeInfo};
 use crate::commands::AppState;
@@ -45,8 +45,8 @@ pub fn start_smart_monitor(app: &AppHandle) {
     let running = Arc::new(AtomicBool::new(true));
     let running_clone = running.clone();
 
-    tokio::spawn(async move {
-        let mut ticker = interval(Duration::from_secs(10));
+    tauri::async_runtime::spawn(async move {
+        let mut ticker = time::interval(Duration::from_secs(10));
         let mut system = sysinfo::System::new();
         let mut last_detected_slug: Option<String> = None;
         let mut games_cache: Vec<GameProfile> = vec![];

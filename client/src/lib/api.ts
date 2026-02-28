@@ -125,6 +125,12 @@ export async function updateSetting(
   return invoke("cmd_update_settings", { key, value });
 }
 
+// ── Billing ─────────────────────────────────────────────────────────
+
+export async function activateTrial(): Promise<import("./types").TrialResponse> {
+  return invoke("cmd_activate_trial");
+}
+
 // ── Utils ───────────────────────────────────────────────────────────
 
 export async function getAppVersion(): Promise<string> {

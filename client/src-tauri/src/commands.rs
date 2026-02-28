@@ -150,6 +150,34 @@ pub async fn cmd_get_user_stats(
     Ok(stats)
 }
 
+// ── Billing Commands ────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn cmd_activate_trial(
+    state: State<'_, AppState>,
+) -> Result<api_client::TrialResponse, String> {
+    let tokens = state.tokens.lock().unwrap().clone();
+    let tokens = tokens.ok_or("Not authenticated")?;
+
+    let (resp, new_tokens) = api_client::with_auto_refresh(&state.api, &tokens, |t| {
+        let api = &state.api;
+        let token = t.to_string();
+        async move { api.activate_trial(&token).await }
+    })
+    .await
+    .map_err(|e| match e {
+        api_client::ApiError::Forbidden(msg) => msg,
+        other => other.to_string(),
+    })?;
+
+    if let Some(new_auth) = new_tokens {
+        new_auth.save();
+        *state.tokens.lock().unwrap() = Some(new_auth);
+    }
+
+    Ok(resp)
+}
+
 // ── Games Commands ──────────────────────────────────────────────────
 
 #[tauri::command]

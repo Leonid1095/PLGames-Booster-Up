@@ -124,6 +124,17 @@ export interface AppSettings {
   minimize_to_tray: boolean;
 }
 
+// ── Billing ────────────────────────────────────────────────────────
+
+export interface TrialResponse {
+  tier: string;
+  plan: string;
+  started_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+  days_remaining: number;
+}
+
 // ── Smart Monitor Events ────────────────────────────────────────────
 
 export interface SmartGameDetectedPayload {

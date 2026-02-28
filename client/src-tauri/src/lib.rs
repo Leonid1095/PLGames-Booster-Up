@@ -81,6 +81,7 @@ pub fn run() {
             commands::cmd_stop_boost,
             commands::cmd_get_boost_status,
             commands::cmd_detect_game,
+            commands::cmd_activate_trial,
             commands::cmd_get_settings,
             commands::cmd_update_settings,
             commands::cmd_quit,
