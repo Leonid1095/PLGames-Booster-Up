@@ -5,6 +5,105 @@
 
 ---
 
+## Дорожная карта разработки клиента
+
+> Статусы: `[ ]` не начато, `[~]` в работе, `[x]` готово
+
+### Этап 0: Подготовка окружения
+- [x] 0.1 Проверить/установить Rust (rustup) — Rust 1.92.0
+- [x] 0.2 Проверить/установить Node.js 20+ — Node 22.17.1
+- [x] 0.3 Проверить WebView2 (Windows 11 — есть из коробки)
+- [x] 0.4 Проверить доступность API: `{"status":"ok","version":"0.1.0"}`
+- [x] 0.5 Scaffold Tauri 2 + React + TypeScript проект в `client/`
+- [x] 0.6 Настроить Tailwind CSS с темой из web (цвета, шрифты)
+- [x] 0.7 `cargo check` + `tsc --noEmit` — без ошибок
+
+### Этап 1: Rust Backend — Config + Auth
+- [x] 1.1 `config.rs` — AppConfig, чтение/запись `%APPDATA%/PLGames/config.json`
+- [x] 1.2 `auth.rs` — AuthTokens, чтение/запись `%APPDATA%/PLGames/auth.json`
+- [x] 1.3 `api_client.rs` — HTTP клиент (reqwest): login, register, refresh, get_me, auto-refresh при 401
+- [x] 1.4 `commands.rs` — Tauri IPC: cmd_login, cmd_register, cmd_logout, cmd_get_user
+- [x] 1.5 Тесты: 4 unit-теста (config + auth serialization)
+
+### Этап 2: React UI — Auth
+- [x] 2.1 Настроить react-router-dom (Login, Register, Dashboard, Games, Settings)
+- [x] 2.2 `lib/api.ts` — обёртки над Tauri invoke
+- [x] 2.3 `lib/types.ts` — TypeScript типы (из web)
+- [x] 2.4 `components/ui/` — Button, Input, Card (стили из web)
+- [x] 2.5 `pages/Login.tsx` — форма email + password
+- [x] 2.6 `pages/Register.tsx` — форма email + username + password
+- [x] 2.7 Кастомный titlebar (Tauri `decorations: false`) — `Titlebar.tsx`
+- [x] 2.8 TypeScript компиляция без ошибок
+
+### Этап 3: Rust Backend — Games + Nodes
+- [x] 3.1 `api_client.rs` — get_games, search_games, get_nodes, ping_node
+- [x] 3.3 `commands.rs` — cmd_get_games, cmd_search_games, cmd_get_nodes, cmd_ping_node
+- [ ] 3.2 `games_cache.rs` — кеш игр в `games_cache.json` (TTL 1 час) — отложено
+
+### Этап 4: React UI — Games + Nodes
+- [x] 4.1 `pages/Dashboard.tsx` — статус, кнопка ВКЛ/ВЫКЛ, текущая игра + узел + навигация
+- [x] 4.2 `pages/GameSelect.tsx` — список игр с поиском
+- [x] 4.3 NodeSelector — встроен в Dashboard (select с узлами)
+- [x] 4.4 `pages/Settings.tsx` — заглушка настроек + о программе
+
+### Этап 5: Rust Backend — Game Detector
+- [x] 5.1 `game_detector.rs` — сканирование процессов Windows (sysinfo 0.33), матчинг с exe_names
+- [x] 5.2 `commands.rs` — cmd_detect_game
+- [x] 5.4 Тесты: 3 unit-теста (detect none, no match, list processes)
+- [ ] 5.3 Событие Tauri `game-detected` → фронтенд popup — отложено
+
+### Этап 6: Rust Backend — PLG Protocol + UDP Proxy (КРИТИЧЕСКИЙ)
+- [x] 6.1 `protocol.rs` — PLG Protocol (реальный формат 10 байт)
+- [x] 6.2 `udp_proxy.rs` — локальный UDP прокси с shared game_addr
+- [x] 6.4 `commands.rs` — cmd_start_boost, cmd_stop_boost, cmd_get_boost_status
+- [x] 6.5 Keepalive: heartbeat (флаг 0x02) каждые 30 сек
+- [x] 6.6 Тесты: 8 unit-тестов PLG Protocol (encode/decode, big-endian, flags, edge cases)
+
+**Всего тестов: 15 passed, 0 failed**
+
+### Этап 7: Multipath
+- [x] 7.1 Дублирование UDP на backup relay при multipath=true
+- [x] 7.2 Дедупликация ответов по seq_number (HashSet, auto-clear >10k)
+- [x] 7.3 Keepalive на оба relay, RTT-замер через keepalive echo
+- [x] 7.4 ProxyStats расширен: multipath_enabled, multipath_active, duplicates_dropped
+- [x] 7.5 commands.rs: backup_relay_addr парсинг, передача multipath_enabled
+
+### Этап 8: UI — Dashboard + Статистика
+- [x] 8.1 TypeScript: BoostStatus, ProxyStats типы + api обёртки startBoost/stopBoost/getBoostStatus
+- [x] 8.2 Dashboard: подключение/отключение, live polling (2 сек), таймер сессии
+- [x] 8.3 SVG sparkline-график пинга (30 точек)
+- [x] 8.4 Live-статистика: bytes sent/received, packets, multipath ON/OFF, duplicates dropped
+- [x] 8.5 Индикатор статуса: круг OFF→зелёный с RTT ms, glow-эффект
+
+### Этап 9: System Tray + Settings
+- [x] 9.1 `tray.rs` — иконка в трее, контекст-меню (Открыть/Выход), двойной клик → показать окно
+- [x] 9.2 `pages/Settings.tsx` — рабочие переключатели: автозапуск, авто-подключение, multipath, трей
+- [x] 9.3 Автозапуск с Windows (HKCU\...\Run через reg.exe)
+- [x] 9.4 IPC: cmd_get_settings, cmd_update_settings → config.json
+
+### Этап 10: Финализация + Билд
+- [x] 10.1 Все 15 unit-тестов проходят (protocol 8, auth 2, config 2, game_detector 3)
+- [x] 10.2 TypeScript компиляция — 0 ошибок
+- [x] 10.3 Tauri bundler: .msi + .exe (NSIS) — успешно
+- [x] 10.4 Размеры: EXE 15 MB, NSIS setup 3.6 MB, MSI 5.2 MB — ВСЕ < 20 MB
+
+### Зависимости этапов
+```
+Этап 0 → Этап 1 → Этап 2
+              ↓
+         Этап 3 → Этап 4
+              ↓
+         Этап 5
+              ↓
+         Этап 6 (КРИТИЧЕСКИЙ — ядро клиента)
+              ↓
+         Этап 7 → Этап 8
+                       ↓
+                  Этап 9 → Этап 10
+```
+
+---
+
 ## Что нужно сделать
 
 Создать десктопный Windows-клиент (Tauri 2 + React + TypeScript) для игрового бустера PLGames.
@@ -179,20 +278,29 @@ GET /api/sessions/history
 
 Клиент общается с relay-сервером по UDP. Формат пакета:
 
+> **ВНИМАНИЕ**: Формат ниже соответствует реальному коду relay-сервера (`relay/src/protocol.rs`).
+
 ```
-┌─────────┬───────┬─────────┬─────────────┐
-│ Version │ Flags │ Token   │ Payload     │
-│ 1 byte  │ 1 byte│ 4 bytes │ N bytes     │
-└─────────┴───────┴─────────┴─────────────┘
+┌──────────┬──────────┬───────┬─────────┬─────────────┐
+│ Token    │ SeqNum   │ Flags │ PathID  │ Payload     │
+│ 4 bytes  │ 4 bytes  │ 1 byte│ 1 byte  │ N bytes     │
+│ (BE u32) │ (BE u32) │       │         │             │
+└──────────┴──────────┴───────┴─────────┴─────────────┘
 ```
 
+**Заголовок: 10 байт** (HEADER_SIZE = 10)
+
 ### Поля:
-- **Version**: `0x01` (всегда)
-- **Flags**:
+- **Token** (offset 0, 4 bytes): `session_token` из `/api/sessions/start` (u32, big-endian)
+- **SeqNum** (offset 4, 4 bytes): порядковый номер пакета (u32, big-endian). Используется для дедупликации при multipath
+- **Flags** (offset 8, 1 byte):
   - `0x00` = обычные данные (DATA)
-  - `0x04` = управляющий пакет (CONTROL)
-- **Token**: `session_token` из `/api/sessions/start` (u32, big-endian)
-- **Payload**: данные
+  - `0x01` = MULTIPATH_DUP — пакет дублирован на несколько путей
+  - `0x02` = KEEPALIVE — heartbeat, relay не пересылает
+  - `0x04` = CONTROL — управляющий пакет (установка forward target)
+  - `0x08` = COMPRESSED — payload сжат (зарезервировано)
+- **PathID** (offset 9, 1 byte): ID пути (`0` = primary, `1` = backup)
+- **Payload** (offset 10+): данные
 
 ### Последовательность работы:
 
@@ -200,22 +308,36 @@ GET /api/sessions/history
 2. Клиент открывает UDP-сокет
 3. Клиент отправляет **control-пакет** на `node_ip:node_port`:
    ```
-   [0x01] [0x04] [token: 4 bytes] [payload: "game_server_ip:port"]
+   [token: 4B] [seq: 4B] [0x04] [0x00] [payload: "game_server_ip:port"]
    ```
-   Payload — строка `"1.2.3.4:27015"` (IP:port игрового сервера)
+   Payload — UTF-8 строка `"1.2.3.4:27015"` (IP:port игрового сервера).
+   Relay валидирует IP по списку `game_server_ips` из зарегистрированной сессии.
 4. Relay запоминает: этот токен → пересылать на game_server_ip:port
 5. Далее клиент шлёт **data-пакеты**:
    ```
-   [0x01] [0x00] [token: 4 bytes] [game UDP payload]
+   [token: 4B] [seq: 4B] [0x00] [0x00] [game UDP payload]
    ```
 6. Relay пересылает payload на game server, ответы от game server шлёт обратно клиенту
+   (ответ обёрнут в PLG header: seq=0, flags=0, path_id=0)
+7. Клиент отправляет **keepalive** каждые 30 сек:
+   ```
+   [token: 4B] [seq: 4B] [0x02] [0x00] []
+   ```
+   Relay обновляет `last_seen`, не пересылает
 
 ### Multipath (опционально):
 
 Если `multipath_enabled=true` в ответе `/api/sessions/start`:
 - Дублировать отправку на оба relay: `node_ip:node_port` и `backup_node_ip:backup_node_port`
+- Устанавливать флаг `0x01` (MULTIPATH_DUP) и path_id (`0` для primary, `1` для backup)
 - Принимать ответ от того, кто ответит первым
+- Дедупликация по seq_number — второй ответ отбрасывается
 - При потере связи с primary — автоматически работать через backup
+
+### Таймауты relay:
+- Сессия удаляется через **300 секунд** без пакетов (SESSION_TIMEOUT)
+- Cleanup каждые 60 секунд
+- Keepalive каждые 30 сек предотвращает удаление
 
 ### Как работает локальный прокси:
 
@@ -401,14 +523,28 @@ curl https://plgames-boost.duckdns.org/api/health
 
 Для проверки UDP relay (из PowerShell/Python):
 ```python
-import socket
+import socket, struct
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-# PLG control packet: version=1, flags=4(control), token=0, payload="1.2.3.4:27015"
-packet = b'\x01\x04\x00\x00\x00\x00' + b'1.2.3.4:27015'
+
+# PLG control packet (реальный формат 10 байт):
+# token=SESSION_TOKEN (u32 BE), seq=1 (u32 BE), flags=0x04 (CONTROL), path_id=0
+session_token = 123456789  # получить из POST /api/sessions/start
+payload = b'1.2.3.4:27015'
+packet = struct.pack('>II', session_token, 1) + b'\x04\x00' + payload
+
 # IP-адрес узла получите из GET /api/nodes
 sock.sendto(packet, ('NODE_IP_FROM_API', 443))
 ```
 (Нужна активная сессия через API для реального теста)
+
+### Стратегия тестирования
+
+| Уровень | Что тестируем | Инструмент |
+|---------|--------------|------------|
+| **Unit (Rust)** | PLG encode/decode, config R/W, auth tokens, exe_names matching | `cargo test` |
+| **Integration** | API health, auth flow, games/nodes fetch, session lifecycle | `cargo test` + real API |
+| **E2E** | login → detect game → connect → UDP через relay → disconnect | Manual + scripts |
+| **UI** | Формы, валидация, отображение данных | Browser DevTools |
 
 ---
 
