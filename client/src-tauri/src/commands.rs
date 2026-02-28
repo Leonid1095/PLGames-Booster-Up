@@ -26,6 +26,69 @@ pub fn cmd_quit(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+// ── Update Commands ────────────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+pub struct UpdateInfo {
+    pub available: bool,
+    pub version: Option<String>,
+    pub body: Option<String>,
+}
+
+#[tauri::command]
+pub async fn cmd_check_update(app: tauri::AppHandle) -> Result<UpdateInfo, String> {
+    use tauri_plugin_updater::UpdaterExt;
+
+    let updater = app.updater().map_err(|e| format!("Updater init failed: {}", e))?;
+    match updater.check().await {
+        Ok(Some(update)) => Ok(UpdateInfo {
+            available: true,
+            version: Some(update.version.clone()),
+            body: update.body.clone(),
+        }),
+        Ok(None) => Ok(UpdateInfo {
+            available: false,
+            version: None,
+            body: None,
+        }),
+        Err(e) => {
+            log::warn!("Update check failed: {}", e);
+            Err(format!("Update check failed: {}", e))
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn cmd_install_update(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_updater::UpdaterExt;
+
+    let updater = app.updater().map_err(|e| format!("Updater init failed: {}", e))?;
+    let update = updater
+        .check()
+        .await
+        .map_err(|e| format!("Check failed: {}", e))?
+        .ok_or("No update available")?;
+
+    log::info!("Installing update v{}...", update.version);
+
+    let mut downloaded = 0;
+    update
+        .download_and_install(
+            |chunk_len, content_len| {
+                downloaded += chunk_len;
+                log::info!("Downloaded {} / {:?} bytes", downloaded, content_len);
+            },
+            || {
+                log::info!("Download complete, installing...");
+            },
+        )
+        .await
+        .map_err(|e| format!("Install failed: {}", e))?;
+
+    log::info!("Update installed, restarting...");
+    app.restart();
+}
+
 // ── Auth Commands ───────────────────────────────────────────────────
 
 #[tauri::command]

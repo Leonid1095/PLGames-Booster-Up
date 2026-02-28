@@ -21,6 +21,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let config = AppConfig::load();
             log::info!("PLGames Booster v{} starting", env!("CARGO_PKG_VERSION"));
@@ -85,6 +86,8 @@ pub fn run() {
             commands::cmd_get_settings,
             commands::cmd_update_settings,
             commands::cmd_quit,
+            commands::cmd_check_update,
+            commands::cmd_install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

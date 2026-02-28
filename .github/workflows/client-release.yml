@@ -1,0 +1,50 @@
+name: Client Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Build Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: client
+          tagName: ${{ github.ref_name }}
+          releaseName: "PLGames Booster ${{ github.ref_name }}"
+          releaseBody: |
+            See the [changelog](https://github.com/Leonid1095/PLGames-Booster-Up/blob/main/CHANGELOG.md) for details.
+
+            ### Install
+            - **NSIS installer (.exe):** recommended for most users
+            - **MSI installer (.msi):** for enterprise/silent deployment
+
+            The app will auto-update from this release.
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true

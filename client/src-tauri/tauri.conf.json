@@ -32,13 +32,22 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis", "msi"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "RWQE+rgZJn8cQh2KNm76xmZyLy9pV8Ww0TNWuYoZQ75Wbt2JwtBW9eqW",
+      "endpoints": [
+        "https://github.com/Leonid1095/PLGames-Booster-Up/releases/latest/download/latest.json"
+      ]
+    }
   }
 }
