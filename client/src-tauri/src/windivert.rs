@@ -363,7 +363,7 @@ impl WinDivertProxy {
 
                     // Inject as inbound packet
                     // Safety: zeroed address is valid for inbound injection
-                    let addr = unsafe { WinDivertAddress::new() };
+                    let addr: WinDivertAddress<windivert::layer::NetworkLayer> = unsafe { WinDivertAddress::new() };
 
                     if let Err(e) = inject_handle.send(&WinDivertPacket {
                         address: addr,
