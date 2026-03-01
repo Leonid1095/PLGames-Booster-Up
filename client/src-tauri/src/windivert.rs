@@ -11,6 +11,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use windivert::prelude::*;
+use windivert::address::WinDivertAddress;
 
 use crate::filter_builder::build_windivert_filter;
 use crate::packet_builder::build_udp_response;
@@ -130,19 +131,17 @@ impl WinDivertProxy {
             let filter = filter.clone();
 
             std::thread::spawn(move || {
-                let handle = match WinDivert::network(&filter)
-                    .map(|wd| wd.set_param(WinDivertParam::QueueLen, 8192))
-                {
-                    Ok(Ok(handle)) => handle,
-                    Ok(Err(e)) => {
-                        log::error!("WinDivert set_param failed: {}", e);
-                        return;
-                    }
+                let handle = match WinDivert::network(&filter, 0, WinDivertFlags::new()) {
+                    Ok(handle) => handle,
                     Err(e) => {
                         log::error!("WinDivert open failed: {}", e);
                         return;
                     }
                 };
+                if let Err(e) = handle.set_param(WinDivertParam::QueueLength, 8192) {
+                    log::warn!("WinDivert set_param QueueLength failed: {}", e);
+                }
+                let handle = handle;
 
                 log::info!("WinDivert capture thread started");
                 let mut buf = vec![0u8; 65535];
@@ -169,7 +168,7 @@ impl WinDivertProxy {
                         // Not UDP, re-inject
                         let _ = handle.send(&WinDivertPacket {
                             address: packet.address,
-                            data: data.to_vec(),
+                            data: data.to_vec().into(),
                         });
                         continue;
                     }
@@ -284,7 +283,7 @@ impl WinDivertProxy {
 
             std::thread::spawn(move || {
                 // Open a separate WinDivert handle for injection only
-                let inject_handle = match WinDivert::network("false") {
+                let inject_handle = match WinDivert::network("false", 0, WinDivertFlags::new().set_send_only()) {
                     Ok(handle) => handle,
                     Err(e) => {
                         log::error!("WinDivert inject handle open failed: {}", e);
@@ -363,14 +362,12 @@ impl WinDivertProxy {
                     );
 
                     // Inject as inbound packet
-                    let addr = WinDivertAddress::new(
-                        WinDivertLayer::Network,
-                        false, // inbound (not outbound)
-                    );
+                    // Safety: zeroed address is valid for inbound injection
+                    let addr = unsafe { WinDivertAddress::new() };
 
                     if let Err(e) = inject_handle.send(&WinDivertPacket {
                         address: addr,
-                        data: raw_pkt,
+                        data: raw_pkt.into(),
                     }) {
                         log::error!("WinDivert: inject failed: {}", e);
                     }
@@ -395,7 +392,7 @@ impl WinDivertProxy {
             let duplicates_dropped = duplicates_dropped.clone();
 
             std::thread::spawn(move || {
-                let inject_handle = match WinDivert::network("false") {
+                let inject_handle = match WinDivert::network("false", 0, WinDivertFlags::new().set_send_only()) {
                     Ok(handle) => handle,
                     Err(e) => {
                         log::error!("WinDivert backup inject handle open failed: {}", e);
@@ -450,10 +447,10 @@ impl WinDivertProxy {
                         remote_ip, local_ip, remote_port, local_port, &pkt.payload,
                     );
 
-                    let addr = WinDivertAddress::new(WinDivertLayer::Network, false);
+                    let addr = unsafe { WinDivertAddress::new() };
                     let _ = inject_handle.send(&WinDivertPacket {
                         address: addr,
-                        data: raw_pkt,
+                        data: raw_pkt.into(),
                     });
 
                     if let Ok(mut s) = stats.try_write() {
