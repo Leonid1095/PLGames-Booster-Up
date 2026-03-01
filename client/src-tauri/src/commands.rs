@@ -5,12 +5,63 @@ use crate::api_client::{self, ApiClient, ApiError};
 use crate::auth::AuthTokens;
 use crate::udp_proxy::{ProxyStats, UdpProxy};
 
+// ── Active Boost Enum ──────────────────────────────────────────────
+
+/// Holds either a localhost UDP proxy or a WinDivert kernel-level interceptor.
+pub enum ActiveBoost {
+    Proxy(UdpProxy),
+    #[cfg(target_os = "windows")]
+    WinDivert(crate::windivert::WinDivertProxy),
+}
+
+impl ActiveBoost {
+    pub fn stop(&self) {
+        match self {
+            ActiveBoost::Proxy(p) => p.stop(),
+            #[cfg(target_os = "windows")]
+            ActiveBoost::WinDivert(w) => w.stop(),
+        }
+    }
+
+    pub async fn get_stats(&self) -> ProxyStats {
+        match self {
+            ActiveBoost::Proxy(p) => p.get_stats().await,
+            #[cfg(target_os = "windows")]
+            ActiveBoost::WinDivert(w) => w.get_stats().await,
+        }
+    }
+
+    pub fn is_running(&self) -> bool {
+        match self {
+            ActiveBoost::Proxy(p) => p.is_running(),
+            #[cfg(target_os = "windows")]
+            ActiveBoost::WinDivert(w) => w.is_running(),
+        }
+    }
+
+    pub fn local_port(&self) -> Option<u16> {
+        match self {
+            ActiveBoost::Proxy(p) => Some(p.local_port()),
+            #[cfg(target_os = "windows")]
+            ActiveBoost::WinDivert(_) => None, // WinDivert doesn't bind a local port
+        }
+    }
+
+    pub fn mode(&self) -> &'static str {
+        match self {
+            ActiveBoost::Proxy(_) => "proxy",
+            #[cfg(target_os = "windows")]
+            ActiveBoost::WinDivert(_) => "windivert",
+        }
+    }
+}
+
 // ── App State ───────────────────────────────────────────────────────
 
 pub struct AppState {
     pub api: ApiClient,
     pub tokens: Mutex<Option<AuthTokens>>,
-    pub active_proxy: tokio::sync::Mutex<Option<UdpProxy>>,
+    pub active_proxy: tokio::sync::Mutex<Option<ActiveBoost>>,
     pub active_session_id: Mutex<Option<String>>,
 }
 
@@ -381,15 +432,17 @@ pub struct BoostStatus {
     pub local_port: Option<u16>,
     pub stats: Option<ProxyStats>,
     pub multipath_enabled: bool,
+    pub mode: String,
 }
 
 #[tauri::command]
 pub async fn cmd_start_boost(
     game_slug: String,
     node_id: String,
-    game_server_target: String,
-    local_port: u16,
+    game_server_target: Option<String>,
+    local_port: Option<u16>,
     multipath: Option<bool>,
+    use_windivert: Option<bool>,
     state: State<'_, AppState>,
 ) -> Result<BoostStatus, String> {
     // Check if already connected
@@ -442,39 +495,139 @@ pub async fn cmd_start_boost(
         _ => None,
     };
 
-    // Start UDP proxy
-    let proxy = UdpProxy::start(
-        session_resp.session_token,
-        relay_addr,
-        backup_relay_addr,
-        &game_server_target,
-        local_port,
-        session_resp.multipath_enabled,
-    )
-    .await?;
+    // Decide mode: WinDivert (default on Windows) or localhost proxy (fallback)
+    let want_windivert = use_windivert.unwrap_or(cfg!(target_os = "windows"));
 
-    let actual_port = proxy.local_port();
+    let (boost, mode_port) = if want_windivert
+        && !session_resp.game_server_ips.is_empty()
+        && !session_resp.game_ports.is_empty()
+    {
+        // Try WinDivert
+        #[cfg(target_os = "windows")]
+        {
+            match crate::windivert::WinDivertProxy::start(
+                session_resp.session_token,
+                relay_addr,
+                backup_relay_addr,
+                &session_resp.game_server_ips,
+                &session_resp.game_ports,
+                session_resp.multipath_enabled,
+            )
+            .await
+            {
+                Ok(wd) => {
+                    let boost = ActiveBoost::WinDivert(wd);
+                    (boost, None) // WinDivert doesn't use a local port
+                }
+                Err(e) => {
+                    log::warn!("WinDivert failed, falling back to proxy: {}", e);
+                    // Fallback to localhost proxy
+                    let target = game_server_target.unwrap_or_else(|| {
+                        if !session_resp.game_server_ips.is_empty()
+                            && !session_resp.game_ports.is_empty()
+                        {
+                            format!(
+                                "{}:{}",
+                                session_resp.game_server_ips[0], session_resp.game_ports[0]
+                            )
+                        } else {
+                            "0.0.0.0:0".to_string()
+                        }
+                    });
+                    let port = local_port.unwrap_or(27015);
+                    let proxy = UdpProxy::start(
+                        session_resp.session_token,
+                        relay_addr,
+                        backup_relay_addr,
+                        &target,
+                        port,
+                        session_resp.multipath_enabled,
+                    )
+                    .await?;
+                    let actual_port = proxy.local_port();
+                    (ActiveBoost::Proxy(proxy), Some(actual_port))
+                }
+            }
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            // Non-Windows: fall through to proxy mode
+            let target = game_server_target.unwrap_or_else(|| {
+                if !session_resp.game_server_ips.is_empty()
+                    && !session_resp.game_ports.is_empty()
+                {
+                    format!(
+                        "{}:{}",
+                        session_resp.game_server_ips[0], session_resp.game_ports[0]
+                    )
+                } else {
+                    "0.0.0.0:0".to_string()
+                }
+            });
+            let port = local_port.unwrap_or(27015);
+            let proxy = UdpProxy::start(
+                session_resp.session_token,
+                relay_addr,
+                backup_relay_addr,
+                &target,
+                port,
+                session_resp.multipath_enabled,
+            )
+            .await?;
+            let actual_port = proxy.local_port();
+            (ActiveBoost::Proxy(proxy), Some(actual_port))
+        }
+    } else {
+        // Explicit proxy mode or missing game IPs/ports
+        let target = game_server_target.unwrap_or_else(|| {
+            if !session_resp.game_server_ips.is_empty()
+                && !session_resp.game_ports.is_empty()
+            {
+                format!(
+                    "{}:{}",
+                    session_resp.game_server_ips[0], session_resp.game_ports[0]
+                )
+            } else {
+                "0.0.0.0:0".to_string()
+            }
+        });
+        let port = local_port.unwrap_or(27015);
+        let proxy = UdpProxy::start(
+            session_resp.session_token,
+            relay_addr,
+            backup_relay_addr,
+            &target,
+            port,
+            session_resp.multipath_enabled,
+        )
+        .await?;
+        let actual_port = proxy.local_port();
+        (ActiveBoost::Proxy(proxy), Some(actual_port))
+    };
+
+    let mode = boost.mode().to_string();
 
     // Store state
-    *state.active_proxy.lock().await = Some(proxy);
+    *state.active_proxy.lock().await = Some(boost);
     *state.active_session_id.lock().unwrap() = Some(session_resp.session_id.clone());
 
     Ok(BoostStatus {
         connected: true,
         session_id: Some(session_resp.session_id),
-        local_port: Some(actual_port),
+        local_port: mode_port,
         stats: None,
         multipath_enabled: session_resp.multipath_enabled,
+        mode,
     })
 }
 
 #[tauri::command]
 pub async fn cmd_stop_boost(state: State<'_, AppState>) -> Result<BoostStatus, String> {
-    // Stop proxy
+    // Stop active boost (proxy or WinDivert)
     {
-        let mut proxy = state.active_proxy.lock().await;
-        if let Some(p) = proxy.take() {
-            p.stop();
+        let mut boost = state.active_proxy.lock().await;
+        if let Some(b) = boost.take() {
+            b.stop();
         }
     }
 
@@ -499,24 +652,27 @@ pub async fn cmd_stop_boost(state: State<'_, AppState>) -> Result<BoostStatus, S
         local_port: None,
         stats: None,
         multipath_enabled: false,
+        mode: "none".to_string(),
     })
 }
 
 #[tauri::command]
 pub async fn cmd_get_boost_status(state: State<'_, AppState>) -> Result<BoostStatus, String> {
     let session_id = state.active_session_id.lock().unwrap().clone();
-    let proxy = state.active_proxy.lock().await;
-    match proxy.as_ref() {
-        Some(p) if p.is_running() => {
-            let local_port = p.local_port();
-            let stats = p.get_stats().await;
+    let boost = state.active_proxy.lock().await;
+    match boost.as_ref() {
+        Some(b) if b.is_running() => {
+            let local_port = b.local_port();
+            let stats = b.get_stats().await;
             let mp = stats.multipath_enabled;
+            let mode = b.mode().to_string();
             Ok(BoostStatus {
                 connected: true,
                 session_id,
-                local_port: Some(local_port),
+                local_port,
                 stats: Some(stats),
                 multipath_enabled: mp,
+                mode,
             })
         }
         _ => Ok(BoostStatus {
@@ -525,7 +681,28 @@ pub async fn cmd_get_boost_status(state: State<'_, AppState>) -> Result<BoostSta
             local_port: None,
             stats: None,
             multipath_enabled: false,
+            mode: "none".to_string(),
         }),
+    }
+}
+
+/// Check if the application is running with administrator privileges.
+/// WinDivert requires admin/elevated privileges on Windows.
+#[tauri::command]
+pub fn cmd_check_admin() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        // `net session` requires admin — exits 0 if elevated, non-zero otherwise
+        Command::new("net")
+            .args(["session"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        false
     }
 }
 

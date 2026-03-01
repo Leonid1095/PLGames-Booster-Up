@@ -177,18 +177,10 @@ export default function Dashboard() {
     setError("");
     setConnecting(true);
     try {
-      // Use first server_ip + first port as target, or fallback
-      const target =
-        selectedGame.server_ips.length > 0 && selectedGame.ports.length > 0
-          ? `${selectedGame.server_ips[0]}:${selectedGame.ports[0]}`
-          : "0.0.0.0:0";
-      const localPort = parseInt(selectedGame.ports[0]) || 27015;
-
+      // Let the backend decide the mode (WinDivert on Windows, proxy fallback)
       const status = await api.startBoost(
         selectedGame.slug,
         selectedNode.id,
-        target,
-        localPort,
       );
       setBoost(status);
       setPingHistory([]);
@@ -422,6 +414,12 @@ export default function Dashboard() {
                   {stats.multipath_enabled && stats.duplicates_dropped > 0 && (
                     <span className="text-text-muted ml-1">(-{stats.duplicates_dropped})</span>
                   )}
+                </p>
+              </div>
+              <div className="bg-surface-bg rounded-lg px-2 py-1.5">
+                <p className="text-text-muted text-[10px]">Режим</p>
+                <p className={`font-mono ${boost?.mode === "windivert" ? "text-brand" : "text-text-muted"}`}>
+                  {boost?.mode === "windivert" ? "WinDivert" : "Proxy"}
                 </p>
               </div>
             </div>

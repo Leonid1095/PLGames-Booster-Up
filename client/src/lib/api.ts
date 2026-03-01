@@ -85,9 +85,10 @@ export async function getSessionHistory(): Promise<SessionHistoryItem[]> {
 export async function startBoost(
   gameSlug: string,
   nodeId: string,
-  gameServerTarget: string,
-  localPort: number,
+  gameServerTarget?: string,
+  localPort?: number,
   multipath?: boolean,
+  useWindivert?: boolean,
 ): Promise<BoostStatus> {
   return invoke("cmd_start_boost", {
     gameSlug,
@@ -95,6 +96,7 @@ export async function startBoost(
     gameServerTarget,
     localPort,
     multipath,
+    useWindivert,
   });
 }
 
@@ -129,6 +131,12 @@ export async function updateSetting(
 
 export async function activateTrial(): Promise<import("./types").TrialResponse> {
   return invoke("cmd_activate_trial");
+}
+
+// ── Admin Check ────────────────────────────────────────────────────
+
+export async function checkAdmin(): Promise<boolean> {
+  return invoke("cmd_check_admin");
 }
 
 // ── Utils ───────────────────────────────────────────────────────────

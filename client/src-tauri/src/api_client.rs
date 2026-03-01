@@ -90,6 +90,10 @@ pub struct SessionStartResponse {
     pub backup_node_port: Option<i32>,
     pub multipath_enabled: bool,
     pub status: String,
+    #[serde(default)]
+    pub game_server_ips: Vec<String>,
+    #[serde(default)]
+    pub game_ports: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

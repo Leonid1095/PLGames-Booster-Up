@@ -70,6 +70,8 @@ export interface SessionStartResponse {
   backup_node_port: number | null;
   multipath_enabled: boolean;
   status: string;
+  game_server_ips: string[];
+  game_ports: string[];
 }
 
 export interface SessionStopResponse {
@@ -112,6 +114,7 @@ export interface BoostStatus {
   local_port: number | null;
   stats: ProxyStats | null;
   multipath_enabled: boolean;
+  mode: string;
 }
 
 // ── Settings ───────────────────────────────────────────────────────

@@ -39,8 +39,13 @@ async def create_session(
 
     # Load node for response
     from app.models.node import Node
+    from app.models.game_profile import GameProfile
     result = await db.execute(select(Node).where(Node.id == session.node_id))
     node = result.scalar_one()
+
+    # Load game profile for server IPs/ports
+    game_result = await db.execute(select(GameProfile).where(GameProfile.id == session.game_profile_id))
+    game = game_result.scalar_one()
 
     # Load backup node if multipath
     backup_node_ip = None
@@ -61,6 +66,8 @@ async def create_session(
         backup_node_port=backup_node_port,
         multipath_enabled=session.multipath_enabled,
         status=session.status,
+        game_server_ips=game.server_ips or [],
+        game_ports=game.ports or [],
     )
 
 

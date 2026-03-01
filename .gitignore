@@ -21,6 +21,11 @@ out/
 client/src-tauri/target/
 relay/target/
 
+# WinDivert binaries (download separately)
+client/src-tauri/resources/windivert/*.dll
+client/src-tauri/resources/windivert/*.sys
+client/src-tauri/resources/windivert/*.lib
+
 # Claude Code
 .claude/
 

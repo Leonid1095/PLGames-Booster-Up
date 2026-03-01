@@ -19,6 +19,8 @@ class SessionStartResponse(BaseModel):
     backup_node_port: int | None = None
     multipath_enabled: bool = False
     status: str
+    game_server_ips: list[str] = []
+    game_ports: list[str] = []
 
 
 class SessionStopRequest(BaseModel):

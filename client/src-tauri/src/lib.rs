@@ -2,11 +2,15 @@ mod api_client;
 mod auth;
 mod commands;
 mod config;
+mod filter_builder;
 mod game_detector;
+mod packet_builder;
 mod protocol;
 mod smart_monitor;
 mod tray;
 mod udp_proxy;
+#[cfg(target_os = "windows")]
+mod windivert;
 
 use api_client::ApiClient;
 use auth::AuthTokens;
@@ -88,6 +92,7 @@ pub fn run() {
             commands::cmd_quit,
             commands::cmd_check_update,
             commands::cmd_install_update,
+            commands::cmd_check_admin,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

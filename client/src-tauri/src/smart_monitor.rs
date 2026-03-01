@@ -267,7 +267,7 @@ async fn find_best_node(api: &ApiClient) -> Option<(NodeInfo, f64)> {
     best.or_else(|| nodes.first().map(|n| (n.clone(), 999.0)))
 }
 
-/// Auto-connect: create session + start UDP proxy
+/// Auto-connect: create session + start boost (WinDivert on Windows, proxy fallback)
 async fn auto_connect(
     _app: &AppHandle,
     state: &AppState,
@@ -314,7 +314,39 @@ async fn auto_connect(
         _ => None,
     };
 
-    // Determine game target and local port
+    // Try WinDivert on Windows if game has server IPs/ports
+    #[cfg(target_os = "windows")]
+    {
+        if !session_resp.game_server_ips.is_empty() && !session_resp.game_ports.is_empty() {
+            match crate::windivert::WinDivertProxy::start(
+                session_resp.session_token,
+                relay_addr,
+                backup_relay_addr,
+                &session_resp.game_server_ips,
+                &session_resp.game_ports,
+                session_resp.multipath_enabled,
+            )
+            .await
+            {
+                Ok(wd) => {
+                    log::info!("Smart monitor: auto-connected via WinDivert");
+                    *state.active_proxy.lock().await =
+                        Some(crate::commands::ActiveBoost::WinDivert(wd));
+                    *state.active_session_id.lock().unwrap() =
+                        Some(session_resp.session_id);
+                    return Ok(0); // WinDivert has no local port
+                }
+                Err(e) => {
+                    log::warn!(
+                        "Smart monitor: WinDivert failed, falling back to proxy: {}",
+                        e
+                    );
+                }
+            }
+        }
+    }
+
+    // Fallback: localhost UDP proxy
     let game_target = if !game.server_ips.is_empty() && !game.ports.is_empty() {
         format!("{}:{}", game.server_ips[0], game.ports[0])
     } else {
@@ -338,7 +370,7 @@ async fn auto_connect(
 
     let actual_port = proxy.local_port();
 
-    *state.active_proxy.lock().await = Some(proxy);
+    *state.active_proxy.lock().await = Some(crate::commands::ActiveBoost::Proxy(proxy));
     *state.active_session_id.lock().unwrap() = Some(session_resp.session_id);
 
     Ok(actual_port)
