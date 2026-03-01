@@ -3,257 +3,262 @@
 > Архитектура: PLG Protocol (custom UDP relay) + WireGuard fallback.
 > Ориентир: GearUP Booster, ExitLag.
 > Оплата: DonatePay. Домен: TBD.
+> Последнее обновление: 2026-03-01
 
 ---
 
 ## Общий таймлайн
 
 ```
-Phase 0:  Инфраструктура + серверы                [Неделя 1]
-Phase 1:  Бэкенд-API (ядро)                       [Недели 2–3]
-Phase 2:  PLG Relay Server на узлах                [Недели 3–4]
-Phase 3:  CLI-клиент + E2E тест                    [Недели 4–5]
-Phase 4:  Windows GUI-клиент (Tauri)               [Недели 5–9]
-Phase 5:  Landing + Личный кабинет (параллельно)   [Недели 6–9]
-Phase 6:  Мониторинг + Метрики                     [Недели 9–10]
-Phase 7:  Биллинг (DonatePay) + Подписки           [Недели 10–11]
-Phase 8:  Админ-панель                             [Недели 11–12]
-Phase 9:  Multipath + дупликация пакетов           [Недели 12–13]
-Phase 10: Тестирование + Закрытая бета             [Недели 13–14]
-Phase 11: Публичный запуск MVP                     [Неделя 15]
+Phase 0:  Инфраструктура + серверы                [Неделя 1]     DONE
+Phase 1:  Бэкенд-API (ядро)                       [Недели 2–3]   DONE
+Phase 2:  PLG Relay Server на узлах                [Недели 3–4]   DONE
+Phase 3:  CLI-клиент + E2E тест                    [Недели 4–5]   PARTIAL (E2E тесты — done)
+Phase 4:  Windows GUI-клиент (Tauri)               [Недели 5–9]   PARTIAL (UI + auto-updater — done, WinDivert — TODO)
+Phase 5:  Landing + Личный кабинет (параллельно)   [Недели 6–9]   DONE
+Phase 6:  Мониторинг + Метрики                     [Недели 9–10]  DONE
+Phase 7:  Биллинг (DonatePay) + Подписки           [Недели 10–11] DONE
+Phase 8:  Админ-панель                             [Недели 11–12] DONE (API only, UI — TODO)
+Phase 9:  Multipath + дупликация пакетов           [Недели 12–13] PARTIAL (server-side — done, client — TODO)
+Phase 10: Тестирование + Закрытая бета             [Недели 13–14] TODO
+Phase 11: Публичный запуск MVP                     [Неделя 15]    TODO
 ═══ MVP READY (~3.5 месяца) ═══
-Phase 12: WireGuard fallback ("Защищённый режим")  [Месяц 4]
-Phase 13: Telegram-бот                             [Месяц 4–5]
-Phase 14: Benchmark + FPS Boost                    [Месяц 5]
-Phase 15: Android-клиент                           [Месяц 5–6]
-Phase 16: Масштабирование                          [Месяц 6+]
+Phase 12: WireGuard fallback ("Защищённый режим")  [Месяц 4]      TODO
+Phase 13: Telegram-бот                             [Месяц 4–5]    TODO
+Phase 14: Benchmark + FPS Boost                    [Месяц 5]      TODO
+Phase 15: Android-клиент                           [Месяц 5–6]    TODO
+Phase 16: Масштабирование                          [Месяц 6+]     TODO
 ```
 
 ---
 
-## Phase 0: Инфраструктура [Неделя 1]
+## Phase 0: Инфраструктура [Неделя 1] — DONE
 
-| # | Задача | Детали | Done when |
-|---|--------|--------|-----------|
-| 0.1 | VPS центральный сервер | DE (Франкфурт), 2 vCPU, 4 GB RAM, 40 GB SSD. Hetzner/Contabo | SSH работает |
-| 0.2 | VPS gateway-узлы | DE, SE, US, LV — 1-2 vCPU, 2-4 GB RAM | SSH ко всем 4 |
-| 0.3 | Безопасность серверов | UFW, fail2ban, SSH по ключу, отключить password login | Все защищены |
-| 0.4 | Git-репозиторий | Monorepo: api/, web/, client/, gateway-agent/, relay/, docs/, infra/ | Repo создан |
-| 0.5 | Docker Compose | PostgreSQL 16, Redis 7 на центральном сервере | БД и Redis up |
-| 0.6 | CI/CD базовый | GitHub Actions: lint, test, build | Pipeline green |
-| 0.7 | NAT + sysctl на узлах | iptables MASQUERADE, ip_forward, UDP buffers, BBR | Трафик форвардится |
+| # | Задача | Детали | Статус |
+|---|--------|--------|--------|
+| 0.1 | VPS центральный сервер | DE (Франкфурт), 2 vCPU, 4 GB RAM, 40 GB SSD | DONE |
+| 0.2 | VPS gateway-узлы | DE, SE, US, LV — 1-2 vCPU, 2-4 GB RAM | TODO (только центральный) |
+| 0.3 | Безопасность серверов | UFW, fail2ban, SSH по ключу, отключить password login | TODO |
+| 0.4 | Git-репозиторий | Monorepo: api/, web/, client/, gateway-agent/, relay/, docs/, infra/ | DONE |
+| 0.5 | Docker Compose | PostgreSQL 16, Redis 7 на центральном сервере | DONE |
+| 0.6 | CI/CD базовый | GitHub Actions: lint, test, build + Client Release | DONE |
+| 0.7 | NAT + sysctl на узлах | iptables MASQUERADE, ip_forward, UDP buffers, BBR | TODO |
 
 **Домен:** покупается позже, пока API доступен по IP.
 **SSL:** настроится после покупки домена.
 
 ### Результат:
-- 5 серверов работают
-- Docker Compose с БД/Redis
-- NAT настроен на всех gateway-узлах
+- Центральный сервер работает (DE Frankfurt)
+- Docker Compose с PostgreSQL 16 + Redis 7
+- GitHub Actions CI/CD для api, relay, web, client
 
 ---
 
-## Phase 1: Бэкенд-API [Недели 2–3]
+## Phase 1: Бэкенд-API [Недели 2–3] — DONE
 
-| # | Задача | Детали | Done when |
-|---|--------|--------|-----------|
-| 1.1 | FastAPI проект | Структура: routers, models, schemas, services, config | uvicorn стартует |
-| 1.2 | Alembic + SQLAlchemy | Модели: User, Node, GameProfile, Session, Subscription | Миграции OK |
-| 1.3 | Auth модуль | register, login, refresh. JWT. bcrypt | curl логин OK |
-| 1.4 | CRUD Games | GET /games, /games/{slug}, /games/search | Список возвращается |
-| 1.5 | CRUD Nodes | GET /nodes с метриками, внутренний API статуса | Узлы с пингом |
-| 1.6 | Sessions API | POST /sessions/start → session_id + node + game_ips | Сессия создаётся |
-| 1.7 | Sessions stop | POST /sessions/stop с метриками | Метрики сохраняются |
-| 1.8 | Relay session management | При /sessions/start: зарегистрировать session_id на relay-сервере узла | Relay знает о сессии |
-| 1.9 | GET /me | Профиль пользователя, план, статистика | Endpoint OK |
-| 1.10 | Seed-данные | 50+ игровых профилей с реальными IP/CIDR/портами/exe-именами | Данные в БД |
-| 1.11 | Rate limiting + CORS | Redis rate limiter, CORS | Работает |
-| 1.12 | Тесты | pytest, 80%+ покрытие auth + sessions | CI green |
+| # | Задача | Детали | Статус |
+|---|--------|--------|--------|
+| 1.1 | FastAPI проект | Структура: routers, models, schemas, services, config | DONE |
+| 1.2 | Alembic + SQLAlchemy | Модели: User, Node, GameProfile, Session, Subscription | DONE |
+| 1.3 | Auth модуль | register, login, refresh. JWT. bcrypt | DONE |
+| 1.4 | CRUD Games | GET /games, /games/{slug}, /games/search | DONE |
+| 1.5 | CRUD Nodes | GET /nodes с метриками, внутренний API статуса | DONE |
+| 1.6 | Sessions API | POST /sessions/start → session_id + node + game_ips | DONE |
+| 1.7 | Sessions stop | POST /sessions/stop с метриками | DONE |
+| 1.8 | Relay session management | При /sessions/start: зарегистрировать session_id на relay-сервере узла | DONE |
+| 1.9 | GET /me | Профиль пользователя, план, статистика | DONE |
+| 1.10 | Seed-данные | 67 игровых профилей с реальными IP/CIDR/портами/exe-именами | DONE |
+| 1.11 | Rate limiting + CORS | Redis rate limiter (ASGI), CORS | DONE |
+| 1.12 | Тесты | pytest, 17 тестов, auth + sessions | DONE |
 
 ### Результат:
-- Полный REST API
+- Полный REST API — 17 тестов проходят
 - Auth, Games, Nodes, Sessions
-- 50+ игровых профилей
+- 67 игровых профилей с иконками
 
 ---
 
-## Phase 2: PLG Relay Server на узлах [Недели 3–4]
+## Phase 2: PLG Relay Server на узлах [Недели 3–4] — DONE
 
 **Это ключевой компонент — аналог GearUP AIR / ExitLag Multipath.**
 
-| # | Задача | Детали | Done when |
-|---|--------|--------|-----------|
-| 2.1 | PLG Relay — базовый UDP сервер | Rust или Go. Слушает :443/UDP. Парсит PLG header. | Принимает пакеты |
-| 2.2 | Session validation | Кэш валидных session_id в памяти. Sync с API при старте сессии | Невалидные отбрасываются |
-| 2.3 | Packet forwarding | Извлечь payload → отправить на оригинальный destination (game server) через raw socket/NAT | Пакет доходит до game server |
-| 2.4 | Response relay | Получить ответ от game server → обернуть в PLG header → отправить клиенту | Ответ доходит до клиента |
-| 2.5 | Session tracking | Маппинг: session_id → client_addr, game_server_addr | Маппинг работает |
-| 2.6 | API управления | HTTP :8443 — POST /sessions/register, DELETE /sessions/{id}, GET /health | Бэкенд может управлять |
-| 2.7 | Безопасность API | API-key между бэкендом и relay-сервером | Без ключа = 403 |
-| 2.8 | Ping monitor | Каждые 30 сек: пинг до игровых IP, отправка в Prometheus | Метрики приходят |
-| 2.9 | Systemd | Автозапуск relay-сервера + health monitor | Переживает перезагрузку |
-| 2.10 | Нагрузочный тест relay | iperf-like тест: 50K pkt/sec через relay | Без потерь |
+| # | Задача | Детали | Статус |
+|---|--------|--------|--------|
+| 2.1 | PLG Relay — базовый UDP сервер | Rust. Слушает :443/UDP. Парсит PLG header. | DONE |
+| 2.2 | Session validation | DashMap кэш валидных session_id. Sync с API | DONE |
+| 2.3 | Packet forwarding | Per-session UDP сокеты, ephemeral port | DONE |
+| 2.4 | Response relay | Ответ от game server → PLG header → клиенту | DONE |
+| 2.5 | Session tracking | Маппинг: session_id → client_addr, game_server_addr | DONE |
+| 2.6 | API управления | HTTP :8443 — POST /sessions/register, DELETE, GET /health | DONE |
+| 2.7 | Безопасность API | X-API-Key auth между бэкендом и relay | DONE |
+| 2.8 | Ping monitor | Метрики на :9090, Prometheus exporter | DONE |
+| 2.9 | Systemd | Автозапуск relay-сервера | TODO |
+| 2.10 | Нагрузочный тест relay | iperf-like тест: 50K pkt/sec через relay | TODO |
 
 ### Результат:
-- PLG Relay работает на всех 4 узлах
-- Принимает UDP :443, форвардит на game server, возвращает ответ
-- API для управления сессиями
-- Проверено под нагрузкой
+- PLG Relay (Rust) — 16 тестов проходят
+- Per-session UDP сокеты для чистого роутинга
+- Management API на :8443, метрики на :9090
 
 ---
 
-## Phase 3: CLI-клиент + E2E тест [Недели 4–5]
+## Phase 3: CLI-клиент + E2E тест [Недели 4–5] — PARTIAL
 
 **Главный milestone. Если E2E не работает — всё остальное бессмысленно.**
 
-| # | Задача | Детали | Done when |
-|---|--------|--------|-----------|
-| 3.1 | CLI-клиент (Python/Rust) | Логин → выбор игры → получение session → WinDivert → PLG relay | Работает на Windows |
-| 3.2 | WinDivert интеграция | Перехват UDP-пакетов к game IPs, инъекция ответов | Пакеты перехватываются |
-| 3.3 | PLG Protocol клиент | Обёртка перехваченных пакетов, отправка на relay :443, приём ответов | Пакеты ходят через relay |
-| 3.4 | Дедупликация | По seq_number — отбрасывать дубли (подготовка для multipath) | Дубли не проходят |
-| 3.5 | Замер пинга ДО/ПОСЛЕ | ICMP ping до game IP напрямую и через relay | Разница видна |
-| 3.6 | E2E: реальная игра | CS2, Dota 2 или LoL через CLI → relay → играем | Игра работает, пинг ОК |
-| 3.7 | Тест всех 4 узлов | E2E через DE, SE, US, LV | Все работают |
-| 3.8 | Тест доступности серверов | Проверить что через наши узлы доступны все игровые серверы | Доступ есть |
-| 3.9 | Нагрузочный тест | 20+ одновременных сессий | Не деградирует |
+| # | Задача | Детали | Статус |
+|---|--------|--------|--------|
+| 3.1 | CLI-клиент (Python/Rust) | Логин → выбор игры → получение session → WinDivert → PLG relay | TODO |
+| 3.2 | WinDivert интеграция | Перехват UDP-пакетов к game IPs, инъекция ответов | TODO |
+| 3.3 | PLG Protocol клиент | Обёртка перехваченных пакетов, отправка на relay :443, приём ответов | TODO |
+| 3.4 | Дедупликация | По seq_number — отбрасывать дубли (подготовка для multipath) | TODO |
+| 3.5 | Замер пинга ДО/ПОСЛЕ | ICMP ping до game IP напрямую и через relay | TODO |
+| 3.6 | E2E: реальная игра | CS2, Dota 2 или LoL через CLI → relay → играем | TODO |
+| 3.7 | E2E тесты relay | Python E2E тесты: API → UDP → relay → mock game server | DONE (10/10) |
+| 3.8 | Тест доступности серверов | Проверить что через наши узлы доступны все игровые серверы | TODO |
+| 3.9 | Нагрузочный тест | 20+ одновременных сессий | TODO |
 
 ### Результат:
-- **Подтверждённый E2E:** API → WinDivert → PLG Relay → Game Server → играем
-- Все 4 узла протестированы
-- Доступ ко всем серверам подтверждён
+- E2E тесты relay-сервера — 10/10 проходят
+- CLI-клиент и WinDivert — ещё не реализованы
 
 ---
 
-## Phase 4: Windows GUI-клиент [Недели 5–9]
+## Phase 4: Windows GUI-клиент [Недели 5–9] — PARTIAL
 
-| # | Задача | Детали | Done when |
-|---|--------|--------|-----------|
-| 4.1 | Tauri + React проект | Tauri 2.x, React 18+, TypeScript, Tailwind CSS | `tauri dev` OK |
-| 4.2 | Дизайн UI (Figma) | Все экраны: Auth, Dashboard, Games, Connection, Session, Settings | Макеты утверждены |
-| 4.3 | Экран авторизации | Логин, регистрация, JWT | Работает |
-| 4.4 | Экран списка игр | Карточки, поиск, категории, бейджи | Из API |
-| 4.5 | Экран подключения | Узлы с пингом, "Играть с ускорением" | Отображается |
-| 4.6 | WinDivert + PLG Protocol (Rust) | Перехват → обёртка → relay → ответ → inject | Трафик идёт через relay |
-| 4.7 | Dashboard активной сессии | Пинг, потери, jitter, график, маршрут, ДО/ПОСЛЕ | Real-time |
-| 4.8 | Настройки | Автозапуск, язык, тема, логи | Сохраняются |
-| 4.9 | Авто-детект игр | Мониторинг процессов Windows → popup | Детектит |
-| 4.10 | Авто-запуск игры | Запуск .exe после подключения | Работает |
-| 4.11 | System tray | Минимизация в трей, контекстное меню | В трее |
-| 4.12 | Автообновление | Tauri updater | Обновляется |
-| 4.13 | Инсталлятор | .msi/.exe через Tauri bundler | Устанавливается |
+| # | Задача | Детали | Статус |
+|---|--------|--------|--------|
+| 4.1 | Tauri + React проект | Tauri 2.10, React 18, TypeScript, Tailwind CSS | DONE |
+| 4.2 | Дизайн UI (Figma) | Все экраны: Auth, Dashboard, Games, Connection, Session, Settings | TODO |
+| 4.3 | Экран авторизации | Логин, регистрация, JWT | DONE |
+| 4.4 | Экран списка игр | Карточки, поиск, категории, бейджи | DONE |
+| 4.5 | Экран подключения | Узлы с пингом, "Играть с ускорением" | DONE |
+| 4.6 | WinDivert + PLG Protocol (Rust) | Перехват → обёртка → relay → ответ → inject | TODO (ключевой!) |
+| 4.7 | Dashboard активной сессии | Пинг, потери, jitter, график, маршрут, ДО/ПОСЛЕ | TODO |
+| 4.8 | Настройки | Автозапуск, язык, тема, логи | DONE |
+| 4.9 | Авто-детект игр | Smart Monitor — мониторинг процессов Windows + авто-оптимизация маршрута | DONE |
+| 4.10 | Авто-запуск игры | Запуск .exe после подключения | TODO |
+| 4.11 | System tray | Минимизация в трей, контекстное меню | DONE |
+| 4.12 | Автообновление | tauri-plugin-updater + GitHub Releases (v0.1.0 опубликован) | DONE |
+| 4.13 | Инсталлятор | NSIS (.exe) + MSI (.msi) через Tauri bundler + GitHub Actions | DONE |
 
 ### Результат:
-- Полнофункциональный Windows-клиент
-- WinDivert + PLG Protocol
-- Все экраны, авто-детект, system tray
-- Инсталлятор готов
+- Tauri клиент с UI: auth, игры, узлы, настройки, tray
+- Smart Monitor авто-детект игр
+- Auto-updater через GitHub Releases
+- NSIS + MSI инсталляторы (v0.1.0)
+- **TODO:** WinDivert + PLG Protocol (без этого клиент не ускоряет трафик)
 
 ---
 
-## Phase 5: Landing + Личный кабинет [Недели 6–9] (параллельно с Phase 4)
+## Phase 5: Landing + Личный кабинет [Недели 6–9] — DONE
 
-| # | Задача | Детали | Done when |
-|---|--------|--------|-----------|
-| 5.1 | Next.js проект | Next.js 14+, Tailwind, i18n RU/EN | `npm run dev` OK |
-| 5.2 | Hero-секция | Заголовок, CTA, speed-test виджет | Отображается |
-| 5.3 | Как это работает | Схема маршрута, 3 шага | Понятно |
-| 5.4 | Поддерживаемые игры | Сетка логотипов | Из API или статично |
-| 5.5 | Преимущества | 5 карточек | Верстается |
-| 5.6 | Тарифы | Таблица: Trial/Monthly/Quarterly/Yearly | С кнопками оплаты |
-| 5.7 | FAQ | Аккордеон | Работает |
-| 5.8 | **Блок "Наши проекты"** | Секция со ссылками на другие проекты команды (TBD) | Место есть, ссылки TBD |
-| 5.9 | Footer | Контакты, **поддержка (TBD)**, Telegram, Discord, **наши проекты** | Все ссылки |
-| 5.10 | Регистрация | Форма | Через API |
-| 5.11 | Личный кабинет: Dashboard | План, статистика, сессии | Из API |
-| 5.12 | Личный кабинет: История | Таблица сессий | Из API |
-| 5.13 | Личный кабинет: Подписка | План, DonatePay оплата, **отмена 1 кнопкой** | Работает |
-| 5.14 | Настройки профиля | Пароль, привязка Telegram | Сохраняется |
-| 5.15 | Страница скачивания | Кнопка, требования, инструкция | Скачивается |
-| 5.16 | SEO | Meta, OG, keywords | Индексируется |
-| 5.17 | Деплой | Docker + Nginx (SSL после покупки домена) | Доступен |
+| # | Задача | Детали | Статус |
+|---|--------|--------|--------|
+| 5.1 | Next.js проект | Next.js 14.2, React 18, Tailwind 3.4, TypeScript | DONE |
+| 5.2 | Hero-секция | Заголовок, CTA, фоновая анимация | DONE |
+| 5.3 | Как это работает | Схема маршрута, 3 шага | DONE |
+| 5.4 | Поддерживаемые игры | Сетка логотипов (ISR 1h, Server Component) | DONE |
+| 5.5 | Преимущества | 5 карточек | DONE |
+| 5.6 | Тарифы | Trial/Monthly/Quarterly/Yearly с кнопками | DONE |
+| 5.7 | FAQ | Аккордеон | DONE |
+| 5.8 | **Блок "Наши проекты"** | Секция со ссылками на другие проекты команды (TBD) | TODO |
+| 5.9 | Footer | GitHub, контакты | DONE |
+| 5.10 | Регистрация | Форма через API | DONE |
+| 5.11 | Личный кабинет: Dashboard | План, статистика, сессии | DONE |
+| 5.12 | Личный кабинет: История | Таблица сессий | DONE |
+| 5.13 | Личный кабинет: Подписка | План, DonatePay оплата | DONE |
+| 5.14 | Настройки профиля | Пароль, привязка Telegram | TODO |
+| 5.15 | Страница скачивания | Кнопка, требования, GitHub Releases | DONE |
+| 5.16 | SEO | Meta, OG, keywords, favicon | DONE |
+| 5.17 | Деплой | Docker, standalone output | DONE |
 
 ### Результат:
-- Лендинг со всеми секциями + "Наши проекты" + "Поддержка"
-- Личный кабинет
-- Оплата через DonatePay
+- Лендинг со всеми секциями (тёмная gaming-тема)
+- Личный кабинет с auth, dashboard, подпиской
+- 31 исходный файл, порт 13000
 
 ---
 
-## Phase 6: Мониторинг + Метрики [Недели 9–10]
+## Phase 6: Мониторинг + Метрики [Недели 9–10] — DONE
 
-| # | Задача | Детали | Done when |
-|---|--------|--------|-----------|
-| 6.1 | Prometheus | Docker, scrape config для всех узлов | Собирает |
-| 6.2 | Grafana | Дашборды: узлы, пинг, загрузка, сессии | Отображает |
-| 6.3 | Метрики relay-серверов | RTT, loss, active sessions, bandwidth | В Grafana |
-| 6.4 | Алерты | Prometheus → Telegram: node down, high loss, high RTT | Приходят |
-| 6.5 | Клиентские метрики | API для приёма метрик от клиентов | Сохраняются |
-| 6.6 | Общий дашборд | Здоровье всей системы | В Grafana |
+| # | Задача | Детали | Статус |
+|---|--------|--------|--------|
+| 6.1 | Prometheus | Docker, scrape: self + plgames-api + plgames-relay-de | DONE |
+| 6.2 | Grafana | 3 дашборда: api-overview, relay-overview, system-health | DONE |
+| 6.3 | Метрики relay-серверов | active sessions, bandwidth, пинг | DONE |
+| 6.4 | Алерты | Prometheus → Telegram: node down, high loss, high RTT | TODO |
+| 6.5 | Клиентские метрики | API для приёма метрик от клиентов | TODO |
+| 6.6 | Общий дашборд | system-health dashboard в Grafana | DONE |
 
 ### Результат:
-- Полный мониторинг: Prometheus + Grafana
-- Алерты в Telegram
+- MetricsMiddleware (pure ASGI) + Prometheus + Grafana
+- 3 дашборда, порт 13001
+- api_requests_total + api_request_duration_seconds
 
 ---
 
-## Phase 7: Биллинг (DonatePay) + Подписки [Недели 10–11]
+## Phase 7: Биллинг (DonatePay) + Подписки [Недели 10–11] — DONE
 
-| # | Задача | Детали | Done when |
-|---|--------|--------|-----------|
-| 7.1 | Интеграция DonatePay | API: генерация платёжных ссылок | Ссылка создаётся |
-| 7.2 | Webhook обработка | Приём уведомлений, валидация подписи, активация подписки | Подписка активируется |
-| 7.3 | Trial логика | 7 дней бесплатно, без карты | Trial работает |
-| 7.4 | Ограничение доступа | Без подписки: /sessions/start → 403 | Блокирует |
-| 7.5 | Отмена подписки | 1 кнопка в кабинете, работает до конца периода | Отменяется |
-| 7.6 | Уведомления | За 3 дня до окончания → email/Telegram | Приходят |
-| 7.7 | История платежей | GET /payments/history | Отображается |
+| # | Задача | Детали | Статус |
+|---|--------|--------|--------|
+| 7.1 | Интеграция DonatePay | Статическая donate-страница + PLG:{payment_id} | DONE |
+| 7.2 | Webhook обработка | POST /api/billing/webhook, HMAC-SHA256 верификация | DONE |
+| 7.3 | Trial логика | 7 дней бесплатно, User.trial_used | DONE |
+| 7.4 | Ограничение доступа | get_subscribed_user dependency → 403 | DONE |
+| 7.5 | Отмена подписки | 1 кнопка, cancelled_at, работает до конца периода | DONE |
+| 7.6 | Уведомления | За 3 дня до окончания → email/Telegram | TODO |
+| 7.7 | История платежей | GET /api/billing/payments | DONE |
 
 ### Результат:
-- DonatePay полностью интегрирован
-- Trial 7 дней, подписки, прозрачная отмена
+- DonatePay интегрирован — 17 тестов
+- Trial 7 дней, 4 плана: trial/monthly/quarterly/yearly
+- Тарифы: $5.99/мес, $14.97/квартал, $47.88/год
 
 ---
 
-## Phase 8: Админ-панель [Недели 11–12]
+## Phase 8: Админ-панель [Недели 11–12] — DONE (API)
 
-| # | Задача | Детали | Done when |
-|---|--------|--------|-----------|
-| 8.1 | Пользователи | Список, поиск, фильтры, детали | Видно |
-| 8.2 | Узлы | Статус, вкл/выкл, приоритет, загрузка | Управляется |
-| 8.3 | Игровые профили | CRUD: добавить игру, CIDR, порты, exe, иконка | Редактируется |
-| 8.4 | Сессии | Активные и завершённые | Отображается |
-| 8.5 | Подписки | Ручное управление | Работает |
-| 8.6 | Grafana embed | Дашборды внутри админки | Видно |
+| # | Задача | Детали | Статус |
+|---|--------|--------|--------|
+| 8.1 | Пользователи API | Список, поиск, фильтры, детали, бан | DONE |
+| 8.2 | Узлы API | CRUD, статус, вкл/выкл, приоритет | DONE |
+| 8.3 | Игровые профили API | CRUD: добавить игру, CIDR, порты, exe, иконка | DONE |
+| 8.4 | Сессии API | Активные и завершённые, фильтры | DONE |
+| 8.5 | Подписки API | Ручное управление, промо-коды | DONE |
+| 8.6 | Admin UI (Web) | Веб-интерфейс админки | TODO |
+| 8.7 | Grafana embed | Дашборды внутри админки | TODO |
 
 ### Результат:
-- Полная админка: пользователи, узлы, игры, сессии, подписки
+- 24 API эндпоинта /api/admin — 35 тестов
+- User.is_admin + get_admin_user dependency
+- PaginatedList[T] для всех списков
+- **TODO:** Веб-интерфейс админки
 
 ---
 
-## Phase 9: Multipath + дупликация [Недели 12–13]
+## Phase 9: Multipath + дупликация [Недели 12–13] — PARTIAL (server-side)
 
 **Это то, что делает нас конкурентоспособными с GearUP/ExitLag.**
 
-| # | Задача | Детали | Done when |
-|---|--------|--------|-----------|
-| 9.1 | Multipath в клиенте | Отправка каждого пакета на 2 узла (primary + backup) | Пакеты идут по 2 путям |
-| 9.2 | Дедупликация в клиенте | По seq_number: первый ответ принимается, дубль отбрасывается | Нет дублей |
-| 9.3 | Multipath в API | /sessions/start возвращает primary + backup node | 2 узла в ответе |
-| 9.4 | Координация узлов | Оба узла знают о сессии, оба форвардят | Оба работают |
-| 9.5 | Умный multipath | Если primary стабилен и loss=0 → отключить дупликацию (экономия трафика) | Адаптивно |
-| 9.6 | UI: показать multipath | В dashboard: "2 маршрута активны", визуализация | Видно в UI |
-| 9.7 | Тестирование | Симуляция потерь на одном пути → второй спасает | Packet loss = 0 |
+| # | Задача | Детали | Статус |
+|---|--------|--------|--------|
+| 9.1 | Multipath в клиенте | Отправка каждого пакета на 2 узла (primary + backup) | TODO |
+| 9.2 | Дедупликация в клиенте | По seq_number: первый ответ принимается, дубль отбрасывается | TODO |
+| 9.3 | Multipath в API | backup_node_id, find_backup_node(), multipath=True | DONE |
+| 9.4 | Координация узлов | Регистрация сессии на primary + backup relay | DONE |
+| 9.5 | Умный multipath | Graceful fallback: 1 узел → multipath_enabled=False | DONE |
+| 9.6 | UI: показать multipath | В dashboard: "2 маршрута активны", визуализация | TODO |
+| 9.7 | Тестирование | 12 серверных тестов проходят | DONE (server) |
 
 ### Результат:
-- Multipath работает: 2 пути одновременно
-- Дупликация + дедупликация
-- Адаптивное включение/отключение
-- Устойчивость к потерям пакетов
+- Server-side multipath — 12 тестов (64 общих)
+- Session.backup_node_id + find_backup_node()
+- **TODO:** Клиентская часть multipath (дупликация + дедупликация)
 
 ---
 
-## Phase 10: Тестирование + Закрытая бета [Недели 13–14]
+## Phase 10: Тестирование + Закрытая бета [Недели 13–14] — TODO
 
 | # | Задача | Детали | Done when |
 |---|--------|--------|-----------|
@@ -271,7 +276,7 @@ Phase 16: Масштабирование                          [Месяц 6+
 
 ---
 
-## Phase 11: Публичный запуск MVP [Неделя 15]
+## Phase 11: Публичный запуск MVP [Неделя 15] — TODO
 
 | # | Задача | Детали | Done when |
 |---|--------|--------|-----------|
@@ -291,7 +296,7 @@ Phase 16: Масштабирование                          [Месяц 6+
 
 ---
 
-## Phase 12: WireGuard fallback [Месяц 4]
+## Phase 12: WireGuard fallback [Месяц 4] — TODO
 
 | # | Задача | Детали |
 |---|--------|--------|
@@ -303,7 +308,7 @@ Phase 16: Масштабирование                          [Месяц 6+
 
 ---
 
-## Phase 13: Telegram-бот [Месяц 4–5]
+## Phase 13: Telegram-бот [Месяц 4–5] — TODO
 
 | # | Задача | Детали |
 |---|--------|--------|
@@ -315,7 +320,7 @@ Phase 16: Масштабирование                          [Месяц 6+
 
 ---
 
-## Phase 14: Benchmark + FPS Boost [Месяц 5]
+## Phase 14: Benchmark + FPS Boost [Месяц 5] — TODO
 
 | # | Задача | Детали |
 |---|--------|--------|
@@ -326,7 +331,7 @@ Phase 16: Масштабирование                          [Месяц 6+
 
 ---
 
-## Phase 15: Android-клиент [Месяц 5–6]
+## Phase 15: Android-клиент [Месяц 5–6] — TODO
 
 | # | Задача | Детали |
 |---|--------|--------|
@@ -337,7 +342,7 @@ Phase 16: Масштабирование                          [Месяц 6+
 
 ---
 
-## Phase 16: Масштабирование [Месяц 6+]
+## Phase 16: Масштабирование [Месяц 6+] — TODO
 
 | # | Задача | Детали |
 |---|--------|--------|
