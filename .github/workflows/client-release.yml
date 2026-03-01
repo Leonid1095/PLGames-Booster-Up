@@ -33,7 +33,7 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/basil00/WinDivert/releases/download/v2.2.2/WinDivert-2.2.2-A.zip" -OutFile windivert.zip
           Expand-Archive windivert.zip -DestinationPath windivert-extracted
           New-Item -ItemType Directory -Force -Path client/src-tauri/resources/windivert
-          Copy-Item windivert-extracted/WinDivert-2.2.2-A/x86_64/* client/src-tauri/resources/windivert/
+          Copy-Item windivert-extracted/WinDivert-2.2.2-A/x64/* client/src-tauri/resources/windivert/
 
       - name: Build Tauri
         uses: tauri-apps/tauri-action@v0
