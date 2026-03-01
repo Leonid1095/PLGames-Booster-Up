@@ -13,13 +13,13 @@
 Phase 0:  Инфраструктура + серверы                [Неделя 1]     DONE
 Phase 1:  Бэкенд-API (ядро)                       [Недели 2–3]   DONE
 Phase 2:  PLG Relay Server на узлах                [Недели 3–4]   DONE
-Phase 3:  CLI-клиент + E2E тест                    [Недели 4–5]   PARTIAL (E2E тесты — done)
-Phase 4:  Windows GUI-клиент (Tauri)               [Недели 5–9]   PARTIAL (UI + auto-updater — done, WinDivert — TODO)
+Phase 3:  CLI-клиент + E2E тест                    [Недели 4–5]   PARTIAL (E2E тесты — done, WinDivert+PLG — done)
+Phase 4:  Windows GUI-клиент (Tauri)               [Недели 5–9]   PARTIAL (UI + updater + WinDivert — done)
 Phase 5:  Landing + Личный кабинет (параллельно)   [Недели 6–9]   DONE
 Phase 6:  Мониторинг + Метрики                     [Недели 9–10]  DONE
 Phase 7:  Биллинг (DonatePay) + Подписки           [Недели 10–11] DONE
 Phase 8:  Админ-панель                             [Недели 11–12] DONE (API only, UI — TODO)
-Phase 9:  Multipath + дупликация пакетов           [Недели 12–13] PARTIAL (server-side — done, client — TODO)
+Phase 9:  Multipath + дупликация пакетов           [Недели 12–13] DONE (server + client)
 Phase 10: Тестирование + Закрытая бета             [Недели 13–14] TODO
 Phase 11: Публичный запуск MVP                     [Неделя 15]    TODO
 ═══ MVP READY (~3.5 месяца) ═══
@@ -108,10 +108,10 @@ Phase 16: Масштабирование                          [Месяц 6+
 
 | # | Задача | Детали | Статус |
 |---|--------|--------|--------|
-| 3.1 | CLI-клиент (Python/Rust) | Логин → выбор игры → получение session → WinDivert → PLG relay | TODO |
-| 3.2 | WinDivert интеграция | Перехват UDP-пакетов к game IPs, инъекция ответов | TODO |
-| 3.3 | PLG Protocol клиент | Обёртка перехваченных пакетов, отправка на relay :443, приём ответов | TODO |
-| 3.4 | Дедупликация | По seq_number — отбрасывать дубли (подготовка для multipath) | TODO |
+| 3.1 | CLI-клиент (Python/Rust) | Логин → выбор игры → получение session → WinDivert → PLG relay | DONE (в Tauri клиенте) |
+| 3.2 | WinDivert интеграция | Перехват UDP-пакетов к game IPs, инъекция ответов | DONE (windivert.rs) |
+| 3.3 | PLG Protocol клиент | Обёртка перехваченных пакетов, отправка на relay :443, приём ответов | DONE (protocol.rs + udp_proxy.rs) |
+| 3.4 | Дедупликация | По seq_number — отбрасывать дубли (подготовка для multipath) | DONE |
 | 3.5 | Замер пинга ДО/ПОСЛЕ | ICMP ping до game IP напрямую и через relay | TODO |
 | 3.6 | E2E: реальная игра | CS2, Dota 2 или LoL через CLI → relay → играем | TODO |
 | 3.7 | E2E тесты relay | Python E2E тесты: API → UDP → relay → mock game server | DONE (10/10) |
@@ -120,7 +120,8 @@ Phase 16: Масштабирование                          [Месяц 6+
 
 ### Результат:
 - E2E тесты relay-сервера — 10/10 проходят
-- CLI-клиент и WinDivert — ещё не реализованы
+- WinDivert + PLG Protocol — реализованы в Tauri клиенте (filter_builder, packet_builder, windivert.rs)
+- Дедупликация по seq_number — работает в UdpProxy и WinDivert
 
 ---
 
@@ -133,7 +134,7 @@ Phase 16: Масштабирование                          [Месяц 6+
 | 4.3 | Экран авторизации | Логин, регистрация, JWT | DONE |
 | 4.4 | Экран списка игр | Карточки, поиск, категории, бейджи | DONE |
 | 4.5 | Экран подключения | Узлы с пингом, "Играть с ускорением" | DONE |
-| 4.6 | WinDivert + PLG Protocol (Rust) | Перехват → обёртка → relay → ответ → inject | TODO (ключевой!) |
+| 4.6 | WinDivert + PLG Protocol (Rust) | Перехват → обёртка → relay → ответ → inject | DONE (windivert.rs, filter_builder.rs, packet_builder.rs) |
 | 4.7 | Dashboard активной сессии | Пинг, потери, jitter, график, маршрут, ДО/ПОСЛЕ | TODO |
 | 4.8 | Настройки | Автозапуск, язык, тема, логи | DONE |
 | 4.9 | Авто-детект игр | Smart Monitor — мониторинг процессов Windows + авто-оптимизация маршрута | DONE |
@@ -147,7 +148,9 @@ Phase 16: Масштабирование                          [Месяц 6+
 - Smart Monitor авто-детект игр
 - Auto-updater через GitHub Releases
 - NSIS + MSI инсталляторы (v0.1.0)
-- **TODO:** WinDivert + PLG Protocol (без этого клиент не ускоряет трафик)
+- WinDivert — прозрачный перехват UDP-трафика на уровне ядра Windows (39 Rust-тестов)
+- ActiveBoost: WinDivert (по умолчанию на Windows) или UdpProxy (fallback)
+- **TODO:** Figma-дизайн, live dashboard с графиками, авто-запуск игры
 
 ---
 
@@ -237,24 +240,24 @@ Phase 16: Масштабирование                          [Месяц 6+
 
 ---
 
-## Phase 9: Multipath + дупликация [Недели 12–13] — PARTIAL (server-side)
+## Phase 9: Multipath + дупликация [Недели 12–13] — DONE
 
 **Это то, что делает нас конкурентоспособными с GearUP/ExitLag.**
 
 | # | Задача | Детали | Статус |
 |---|--------|--------|--------|
-| 9.1 | Multipath в клиенте | Отправка каждого пакета на 2 узла (primary + backup) | TODO |
-| 9.2 | Дедупликация в клиенте | По seq_number: первый ответ принимается, дубль отбрасывается | TODO |
+| 9.1 | Multipath в клиенте | Отправка каждого пакета на 2 узла (primary + backup) | DONE (udp_proxy.rs + windivert.rs) |
+| 9.2 | Дедупликация в клиенте | По seq_number: первый ответ принимается, дубль отбрасывается | DONE (HashSet seen_seqs) |
 | 9.3 | Multipath в API | backup_node_id, find_backup_node(), multipath=True | DONE |
 | 9.4 | Координация узлов | Регистрация сессии на primary + backup relay | DONE |
 | 9.5 | Умный multipath | Graceful fallback: 1 узел → multipath_enabled=False | DONE |
-| 9.6 | UI: показать multipath | В dashboard: "2 маршрута активны", визуализация | TODO |
-| 9.7 | Тестирование | 12 серверных тестов проходят | DONE (server) |
+| 9.6 | UI: показать multipath | В dashboard: multipath ON/OFF + duplicates dropped + режим | DONE |
+| 9.7 | Тестирование | 12 серверных тестов проходят | DONE |
 
 ### Результат:
-- Server-side multipath — 12 тестов (64 общих)
-- Session.backup_node_id + find_backup_node()
-- **TODO:** Клиентская часть multipath (дупликация + дедупликация)
+- Server-side multipath — 12 тестов (64 API общих)
+- Client-side: дупликация на оба relay + дедупликация по seq_number (UdpProxy и WinDivert)
+- UI: показывает Multipath ON/OFF, dropped duplicates, режим (WinDivert/Proxy)
 
 ---
 
