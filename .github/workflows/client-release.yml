@@ -27,24 +27,37 @@ jobs:
         working-directory: client
         run: npm ci
 
+      - name: Download WinDivert
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://reqrypt.org/resources/windivert/WinDivert-2.2.2-A.zip" -OutFile windivert.zip
+          Expand-Archive windivert.zip -DestinationPath windivert-extracted
+          New-Item -ItemType Directory -Force -Path client/src-tauri/resources/windivert
+          Copy-Item windivert-extracted/WinDivert-2.2.2-A/x86_64/* client/src-tauri/resources/windivert/
+
       - name: Build Tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          WINDIVERT_PATH: ${{ github.workspace }}/client/src-tauri/resources/windivert
         with:
           projectPath: client
           tagName: ${{ github.ref_name }}
           releaseName: "PLGames Booster ${{ github.ref_name }}"
           releaseBody: |
-            See the [changelog](https://github.com/Leonid1095/PLGames-Booster-Up/blob/main/CHANGELOG.md) for details.
+            ### What's New
+            - Transparent UDP interception via WinDivert (no proxy config needed)
+            - Automatic fallback to localhost proxy if WinDivert unavailable
+            - Admin privilege detection for WinDivert mode
+            - PLG Protocol integration with relay servers
 
             ### Install
             - **NSIS installer (.exe):** recommended for most users
             - **MSI installer (.msi):** for enterprise/silent deployment
 
-            The app will auto-update from this release.
+            The app will auto-update from previous versions automatically.
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
