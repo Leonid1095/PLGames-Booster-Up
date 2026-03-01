@@ -9,7 +9,6 @@ python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 redis==5.2.1
-celery==5.4.0
 httpx==0.28.1
 python-multipart==0.0.20
 prometheus-client==0.21.1

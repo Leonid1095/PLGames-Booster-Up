@@ -40,11 +40,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": true,
-    "resources": [
-      "resources/windivert/WinDivert.dll",
-      "resources/windivert/WinDivert64.sys"
-    ]
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "updater": {
