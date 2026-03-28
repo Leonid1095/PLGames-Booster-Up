@@ -17,6 +17,13 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: client/src-tauri
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -26,6 +33,14 @@ jobs:
       - name: Install dependencies
         working-directory: client
         run: npm ci
+
+      - name: Clippy
+        working-directory: client/src-tauri
+        run: cargo clippy -- -D warnings
+
+      - name: Rust tests
+        working-directory: client/src-tauri
+        run: cargo test
 
       - name: Build Tauri
         working-directory: client

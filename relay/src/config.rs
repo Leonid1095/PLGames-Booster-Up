@@ -12,8 +12,9 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_env() -> Self {
-        let api_key = env::var("RELAY_API_KEY").expect("RELAY_API_KEY must be set");
+    pub fn try_from_env() -> Result<Self, String> {
+        let api_key = env::var("RELAY_API_KEY")
+            .map_err(|_| "RELAY_API_KEY environment variable must be set".to_string())?;
         let relay_port = env::var("RELAY_PORT")
             .ok()
             .and_then(|v| v.parse().ok())
@@ -35,14 +36,19 @@ impl Config {
             .and_then(|v| v.parse().ok())
             .unwrap_or(300);
 
-        Self {
+        Ok(Self {
             api_key,
             relay_port,
             api_port,
             metrics_port,
             max_sessions,
             session_timeout: Duration::from_secs(session_timeout_secs),
-        }
+        })
+    }
+
+    #[cfg(test)]
+    pub fn from_env() -> Self {
+        Self::try_from_env().expect("RELAY_API_KEY must be set")
     }
 }
 

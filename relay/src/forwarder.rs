@@ -164,16 +164,13 @@ pub fn spawn_response_listener(
                 continue;
             }
 
-            // Wrap response in PLG header.
-            let response_packet = PlgPacket {
-                session_id: token,
-                seq_number: 0, // Response packets use seq=0 (client tracks its own seq).
-                flags: 0,
-                path_id: 0,
-                payload: buf[..len].to_vec(),
-            };
-
-            let data = response_packet.serialize();
+            // Wrap response in PLG header using a stack buffer to avoid allocations.
+            let mut data = Vec::with_capacity(HEADER_SIZE + len);
+            data.extend_from_slice(&token.to_be_bytes());
+            data.extend_from_slice(&0u32.to_be_bytes()); // seq=0 for responses
+            data.push(0); // flags
+            data.push(0); // path_id
+            data.extend_from_slice(&buf[..len]);
 
             if let Err(e) = main_socket.send_to(&data, client_addr).await {
                 warn!(token, %client_addr, error = %e, "failed to send response to client");

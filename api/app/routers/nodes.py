@@ -6,17 +6,26 @@ from app.database import get_db
 from app.models.node import Node
 from app.schemas.node import NodePingResponse, NodeResponse
 from app.services.node_service import get_node_ping
+from app.utils.cache import cache_get, cache_set
 
 router = APIRouter(prefix="/api/nodes", tags=["nodes"])
+
+NODES_CACHE_TTL = 60  # 1 minute
 
 
 @router.get("", response_model=list[NodeResponse])
 async def list_nodes(db: AsyncSession = Depends(get_db)):
+    cached = await cache_get("nodes:active")
+    if cached:
+        return [NodeResponse(**n) for n in cached]
+
     result = await db.execute(
         select(Node).where(Node.status == "active").order_by(Node.location)
     )
     nodes = result.scalars().all()
-    return [NodeResponse.model_validate(n) for n in nodes]
+    response = [NodeResponse.model_validate(n) for n in nodes]
+    await cache_set("nodes:active", [r.model_dump() for r in response], ttl=NODES_CACHE_TTL)
+    return response
 
 
 @router.get("/{node_id}/ping", response_model=NodePingResponse)

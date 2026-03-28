@@ -1,4 +1,4 @@
-import random
+import secrets
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -12,8 +12,8 @@ from app.services.relay_client import register_session_on_relay, unregister_sess
 
 
 def generate_session_token() -> int:
-    """Generate a random session token compatible with PLG Protocol u32."""
-    return random.randint(1, 2**31 - 1)
+    """Generate a cryptographically secure session token compatible with PLG Protocol u32."""
+    return secrets.randbelow(2**31 - 1) + 1
 
 
 async def start_session(
@@ -39,12 +39,12 @@ async def start_session(
     if node is None:
         raise ValueError("Node not found or inactive")
 
-    # Check for existing active session
+    # Check for existing active session (with row-level lock to prevent race conditions)
     result = await db.execute(
         select(Session).where(
             Session.user_id == user_id,
             Session.status == "active",
-        )
+        ).with_for_update(skip_locked=True)
     )
     existing = result.scalar_one_or_none()
     if existing is not None:

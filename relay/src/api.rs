@@ -177,3 +177,121 @@ async fn health(State(state): State<Arc<ApiState>>) -> Json<HealthResponse> {
         uptime_secs: state.start_time.elapsed().as_secs(),
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::StatusCode;
+    use tower::ServiceExt;
+
+    use crate::metrics::Metrics;
+
+    async fn test_state() -> Arc<ApiState> {
+        let metrics = Metrics::new();
+        let cache = Arc::new(SessionCache::new(10, std::time::Duration::from_secs(300), metrics));
+        let main_socket = Arc::new(tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap());
+
+        Arc::new(ApiState {
+            session_cache: cache,
+            api_key: "test-key-123".to_string(),
+            main_socket,
+            start_time: Instant::now(),
+        })
+    }
+
+    #[tokio::test]
+    async fn test_health_endpoint() {
+        let state = test_state().await;
+        let app = build_router(state);
+
+        let req = axum::http::Request::builder()
+            .method("GET")
+            .uri("/health")
+            .body(Body::empty())
+            .unwrap();
+
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let body = axum::body::to_bytes(resp.into_body(), 1024).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(json["status"], "ok");
+        assert_eq!(json["active_sessions"], 0);
+    }
+
+    #[tokio::test]
+    async fn test_register_without_api_key() {
+        let state = test_state().await;
+        let app = build_router(state);
+
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/sessions")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"session_token":1,"game_server_ips":[],"game_ports":[]}"#))
+            .unwrap();
+
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_register_with_wrong_api_key() {
+        let state = test_state().await;
+        let app = build_router(state);
+
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/sessions")
+            .header("content-type", "application/json")
+            .header("x-api-key", "wrong-key")
+            .body(Body::from(r#"{"session_token":1,"game_server_ips":[],"game_ports":[]}"#))
+            .unwrap();
+
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+    }
+
+    #[tokio::test]
+    async fn test_register_and_unregister() {
+        let state = test_state().await;
+
+        // Register a session.
+        let app = build_router(state.clone());
+        let req = axum::http::Request::builder()
+            .method("POST")
+            .uri("/sessions")
+            .header("content-type", "application/json")
+            .header("x-api-key", "test-key-123")
+            .body(Body::from(
+                r#"{"session_token":42,"game_server_ips":["10.0.0.1"],"game_ports":["27015"]}"#,
+            ))
+            .unwrap();
+
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(state.session_cache.active_count(), 1);
+
+        // Unregister.
+        let app2 = build_router(state.clone());
+        let req = axum::http::Request::builder()
+            .method("DELETE")
+            .uri("/sessions/42")
+            .header("x-api-key", "test-key-123")
+            .body(Body::empty())
+            .unwrap();
+
+        let resp = app2.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_eq!(state.session_cache.active_count(), 0);
+    }
+
+    #[test]
+    fn test_constant_time_eq() {
+        assert!(constant_time_eq(b"hello", b"hello"));
+        assert!(!constant_time_eq(b"hello", b"world"));
+        assert!(!constant_time_eq(b"hello", b"hell"));
+        assert!(constant_time_eq(b"", b""));
+    }
+}

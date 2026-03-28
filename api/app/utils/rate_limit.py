@@ -8,8 +8,10 @@ from app.config import settings
 
 # Per-path rate limit overrides (requests, window_seconds)
 AUTH_PATHS = {"/api/auth/register", "/api/auth/login", "/api/auth/refresh"}
+BILLING_PATHS = {"/api/billing/subscribe", "/api/billing/webhook", "/api/billing/trial"}
 AUTH_LIMIT = (5, 60)  # 5 req per 60s
-GLOBAL_LIMIT = (100, 60)  # 100 req per 60s
+BILLING_LIMIT = (10, 60)  # 10 req per 60s
+GLOBAL_LIMIT = (60, 60)  # 60 req per 60s
 
 
 class RateLimitMiddleware:
@@ -47,6 +49,9 @@ class RateLimitMiddleware:
         if path in AUTH_PATHS:
             max_requests, window = AUTH_LIMIT
             key = f"rl:auth:{client_ip}:{path}"
+        elif path in BILLING_PATHS:
+            max_requests, window = BILLING_LIMIT
+            key = f"rl:billing:{client_ip}:{path}"
         else:
             max_requests, window = GLOBAL_LIMIT
             key = f"rl:global:{client_ip}"

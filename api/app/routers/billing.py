@@ -107,7 +107,7 @@ async def donatepay_webhook(request: Request, db: AsyncSession = Depends(get_db)
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON"
         )
 
-    payment = await billing_service.process_webhook(db, data, signature)
+    payment = await billing_service.process_webhook(db, data, signature, body_bytes=body)
     if payment is None:
         return {"status": "ignored"}
     return {"status": "ok", "payment_id": str(payment.id)}

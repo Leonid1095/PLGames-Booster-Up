@@ -11,12 +11,13 @@
 
 pub const HEADER_SIZE: usize = 10;
 
+#[allow(dead_code)]
 pub const FLAG_MULTIPATH_DUP: u8 = 0x01;
 pub const FLAG_KEEPALIVE: u8 = 0x02;
 pub const FLAG_CONTROL: u8 = 0x04;
-pub const FLAG_COMPRESSED: u8 = 0x08;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PlgPacket {
     pub session_id: u32,
     pub seq_number: u32,
@@ -25,6 +26,7 @@ pub struct PlgPacket {
     pub payload: Vec<u8>,
 }
 
+#[allow(dead_code)]
 impl PlgPacket {
     pub fn parse(data: &[u8]) -> Option<Self> {
         if data.len() < HEADER_SIZE {

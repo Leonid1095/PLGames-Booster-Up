@@ -19,8 +19,8 @@ async def lifespan(app: FastAPI):
 fastapi_app = FastAPI(
     title="PLGames Booster UP API",
     version="0.1.0",
-    docs_url="/api/docs",
-    openapi_url="/api/openapi.json",
+    docs_url="/api/docs" if settings.api_debug else None,
+    openapi_url="/api/openapi.json" if settings.api_debug else None,
     lifespan=lifespan,
 )
 
@@ -28,8 +28,8 @@ fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
 )
 
 fastapi_app.include_router(admin_router)

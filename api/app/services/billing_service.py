@@ -133,7 +133,7 @@ async def create_payment_link(
             original_amount = amount
             amount = apply_discount(amount, promo)
             applied_promo = promo.code
-            promo.current_uses += 1
+            promo.current_uses = PromoCode.current_uses + 1
 
     payment = Payment(
         user_id=user.id,
@@ -157,12 +157,13 @@ async def create_payment_link(
 
 
 async def process_webhook(
-    db: AsyncSession, data: dict, signature: str | None = None
+    db: AsyncSession, data: dict, signature: str | None = None, body_bytes: bytes | None = None,
 ) -> Payment | None:
-    if settings.donatepay_webhook_secret and signature:
-        # In production, verify the signature
-        # For now, we accept if secret is empty (dev mode)
-        pass
+    if settings.donatepay_webhook_secret:
+        if not signature or not body_bytes:
+            return None
+        if not verify_webhook_signature(body_bytes, signature, settings.donatepay_webhook_secret):
+            return None
 
     comment = data.get("comment", "")
     if not comment or not comment.startswith("PLG:"):

@@ -13,6 +13,7 @@ pub struct SessionInfo {
     pub session_token: u32,
     pub client_addr: SocketAddr,
     pub game_server_ips: Vec<String>,
+    #[allow(dead_code)]
     pub game_ports: Vec<u16>,
     /// Current forwarding target (set by control packet or default).
     pub forward_target: Option<SocketAddr>,
@@ -141,16 +142,10 @@ impl SessionCache {
     }
 
     /// Update the client address for a session (e.g., after NAT rebinding).
+    #[allow(dead_code)]
     pub fn update_client_addr(&self, session_token: u32, new_addr: SocketAddr) {
         if let Some(mut info) = self.sessions.get_mut(&session_token) {
             info.client_addr = new_addr;
-        }
-    }
-
-    /// Set the forward target for a session (called from control packets).
-    pub fn set_forward_target(&self, session_token: u32, target: SocketAddr) {
-        if let Some(mut info) = self.sessions.get_mut(&session_token) {
-            info.forward_target = Some(target);
         }
     }
 

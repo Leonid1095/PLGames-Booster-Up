@@ -1,8 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
+from app.models.game_profile import GameProfile
+from app.models.node import Node
 from app.models.session import Session
 from app.models.user import User
 from app.schemas.session import (
@@ -37,37 +40,25 @@ async def create_session(
             detail=str(e),
         )
 
-    # Load node for response
-    from app.models.node import Node
-    from app.models.game_profile import GameProfile
-    result = await db.execute(select(Node).where(Node.id == session.node_id))
-    node = result.scalar_one()
-
-    # Load game profile for server IPs/ports
-    game_result = await db.execute(select(GameProfile).where(GameProfile.id == session.game_profile_id))
-    game = game_result.scalar_one()
-
-    # Load backup node if multipath
-    backup_node_ip = None
-    backup_node_port = None
-    if session.backup_node_id:
-        result = await db.execute(select(Node).where(Node.id == session.backup_node_id))
-        backup_node = result.scalar_one_or_none()
-        if backup_node:
-            backup_node_ip = backup_node.ip_address
-            backup_node_port = backup_node.relay_port
+    # Reload session with all relationships in a single query
+    result = await db.execute(
+        select(Session)
+        .where(Session.id == session.id)
+        .options(selectinload(Session.node), selectinload(Session.game_profile), selectinload(Session.backup_node))
+    )
+    session = result.scalar_one()
 
     return SessionStartResponse(
         session_id=session.id,
         session_token=session.session_token,
-        node_ip=node.ip_address,
-        node_port=node.relay_port,
-        backup_node_ip=backup_node_ip,
-        backup_node_port=backup_node_port,
+        node_ip=session.node.ip_address,
+        node_port=session.node.relay_port,
+        backup_node_ip=session.backup_node.ip_address if session.backup_node else None,
+        backup_node_port=session.backup_node.relay_port if session.backup_node else None,
         multipath_enabled=session.multipath_enabled,
         status=session.status,
-        game_server_ips=game.server_ips or [],
-        game_ports=game.ports or [],
+        game_server_ips=session.game_profile.server_ips or [],
+        game_ports=session.game_profile.ports or [],
     )
 
 
@@ -106,26 +97,17 @@ async def session_history(
     result = await db.execute(
         select(Session)
         .where(Session.user_id == user.id)
+        .options(selectinload(Session.game_profile), selectinload(Session.node))
         .order_by(Session.created_at.desc())
         .limit(50)
     )
     sessions = result.scalars().all()
 
-    items = []
-    for s in sessions:
-        # Load related data
-        from app.models.game_profile import GameProfile
-        from app.models.node import Node
-
-        game_result = await db.execute(select(GameProfile).where(GameProfile.id == s.game_profile_id))
-        game = game_result.scalar_one_or_none()
-        node_result = await db.execute(select(Node).where(Node.id == s.node_id))
-        node = node_result.scalar_one_or_none()
-
-        items.append(SessionHistoryItem(
+    return [
+        SessionHistoryItem(
             id=s.id,
-            game_name=game.name if game else "Unknown",
-            node_location=node.location if node else "Unknown",
+            game_name=s.game_profile.name if s.game_profile else "Unknown",
+            node_location=s.node.location if s.node else "Unknown",
             status=s.status,
             started_at=s.started_at,
             ended_at=s.ended_at,
@@ -133,6 +115,6 @@ async def session_history(
             bytes_sent=s.bytes_sent,
             bytes_received=s.bytes_received,
             multipath_enabled=s.multipath_enabled,
-        ))
-
-    return items
+        )
+        for s in sessions
+    ]
