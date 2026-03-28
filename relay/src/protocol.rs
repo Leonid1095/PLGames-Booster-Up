@@ -1,13 +1,13 @@
-/// PLG Protocol packet format:
-///
-/// Offset  Size   Field
-/// 0       4      Session ID
-/// 4       4      Sequence Number
-/// 8       1      Flags (0x01=multipath_dup, 0x02=keepalive, 0x04=control, 0x08=compressed)
-/// 9       1      Path ID (0=primary, 1=backup)
-/// 10      N      Payload (original game UDP packet)
-///
-/// Total overhead: 10 bytes
+// PLG Protocol packet format:
+//
+// Offset  Size   Field
+// 0       4      Session ID
+// 4       4      Sequence Number
+// 8       1      Flags (0x01=multipath_dup, 0x02=keepalive, 0x04=control)
+// 9       1      Path ID (0=primary, 1=backup)
+// 10      N      Payload (original game UDP packet)
+//
+// Total overhead: 10 bytes
 
 pub const HEADER_SIZE: usize = 10;
 
