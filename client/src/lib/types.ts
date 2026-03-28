@@ -103,6 +103,8 @@ export interface ProxyStats {
   bytes_sent: number;
   bytes_received: number;
   last_rtt_ms: number | null;
+  jitter_ms: number | null;
+  packet_loss_percent: number;
   multipath_enabled: boolean;
   multipath_active: boolean;
   duplicates_dropped: number;

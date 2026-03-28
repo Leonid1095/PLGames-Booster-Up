@@ -268,6 +268,17 @@ export default function Dashboard() {
   const isConnected = boost?.connected === true;
   const stats = boost?.stats;
   const currentPing = stats?.last_rtt_ms;
+  const jitter = stats?.jitter_ms;
+  const packetLoss = stats?.packet_loss_percent ?? 0;
+
+  // Connection quality: green < 50ms & < 1% loss, yellow < 100ms & < 5%, red otherwise
+  const getQuality = (): { color: string; label: string } => {
+    if (!isConnected || currentPing == null) return { color: "text-text-muted", label: "" };
+    if (currentPing < 50 && packetLoss < 1) return { color: "text-green-400", label: "Отличное" };
+    if (currentPing < 100 && packetLoss < 5) return { color: "text-yellow-400", label: "Среднее" };
+    return { color: "text-red-400", label: "Плохое" };
+  };
+  const quality = getQuality();
 
   return (
     <>
@@ -360,7 +371,14 @@ export default function Dashboard() {
             {isConnected ? "Подключен" : "Отключен"}
           </p>
           {isConnected && (
-            <p className="text-xs text-text-muted">{formatTime(sessionTime)}</p>
+            <>
+              <p className="text-xs text-text-muted">{formatTime(sessionTime)}</p>
+              {quality.label && (
+                <p className={`text-[10px] mt-0.5 font-medium ${quality.color}`}>
+                  Качество: {quality.label}
+                </p>
+              )}
+            </>
           )}
         </Card>
 
@@ -388,7 +406,28 @@ export default function Dashboard() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="bg-surface-bg rounded-lg px-2 py-1.5">
+                <p className="text-text-muted text-[10px]">Пинг</p>
+                <p className="text-text-primary font-mono">
+                  {currentPing != null ? `${Math.round(currentPing)} ms` : "--"}
+                </p>
+              </div>
+              <div className="bg-surface-bg rounded-lg px-2 py-1.5">
+                <p className="text-text-muted text-[10px]">Джиттер</p>
+                <p className={`font-mono ${jitter != null && jitter > 10 ? "text-yellow-400" : "text-text-primary"}`}>
+                  {jitter != null ? `${jitter.toFixed(1)} ms` : "--"}
+                </p>
+              </div>
+              <div className="bg-surface-bg rounded-lg px-2 py-1.5">
+                <p className="text-text-muted text-[10px]">Потери</p>
+                <p className={`font-mono ${packetLoss > 2 ? "text-red-400" : packetLoss > 0.5 ? "text-yellow-400" : "text-green-400"}`}>
+                  {packetLoss.toFixed(1)}%
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-xs mt-2">
               <div className="bg-surface-bg rounded-lg px-2 py-1.5">
                 <p className="text-text-muted text-[10px]">Отправлено</p>
                 <p className="text-text-primary font-mono">
@@ -416,10 +455,11 @@ export default function Dashboard() {
                   )}
                 </p>
               </div>
-              <div className="bg-surface-bg rounded-lg px-2 py-1.5">
+              <div className="col-span-2 bg-surface-bg rounded-lg px-2 py-1.5">
                 <p className="text-text-muted text-[10px]">Режим</p>
                 <p className={`font-mono ${boost?.mode === "windivert" ? "text-brand" : "text-text-muted"}`}>
                   {boost?.mode === "windivert" ? "WinDivert" : "Proxy"}
+                  <span className="text-text-muted ml-2">{formatTime(sessionTime)}</span>
                 </p>
               </div>
             </div>

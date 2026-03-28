@@ -726,6 +726,25 @@ pub async fn cmd_detect_game(
     Ok(detected)
 }
 
+// ── Game Launch Commands ───────────────────────────────────────────
+
+#[tauri::command]
+pub async fn cmd_launch_game(exe_path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        Command::new(&exe_path)
+            .spawn()
+            .map_err(|e| format!("Failed to launch {}: {}", exe_path, e))?;
+        log::info!("Launched game: {}", exe_path);
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("Game launch is only supported on Windows".to_string())
+    }
+}
+
 // ── Settings Commands ──────────────────────────────────────────────
 
 #[tauri::command]

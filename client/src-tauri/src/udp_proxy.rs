@@ -16,9 +16,17 @@ pub struct ProxyStats {
     pub bytes_sent: u64,
     pub bytes_received: u64,
     pub last_rtt_ms: Option<f64>,
+    pub jitter_ms: Option<f64>,
+    pub packet_loss_percent: f64,
     pub multipath_enabled: bool,
     pub multipath_active: bool,
     pub duplicates_dropped: u64,
+    /// Rolling RTT history for jitter calculation (internal, not serialized to frontend)
+    #[serde(skip)]
+    pub rtt_history: Vec<f64>,
+    /// Total packets expected (for loss calculation)
+    #[serde(skip)]
+    pub packets_expected: u64,
 }
 
 /// Running UDP proxy instance
@@ -90,9 +98,13 @@ impl UdpProxy {
             bytes_sent: 0,
             bytes_received: 0,
             last_rtt_ms: None,
+            jitter_ms: None,
+            packet_loss_percent: 0.0,
             multipath_enabled: actual_multipath,
             multipath_active: actual_multipath,
             duplicates_dropped: 0,
+            rtt_history: Vec::with_capacity(30),
+            packets_expected: 0,
         }));
 
         // Shared game address (set by task 1, read by task 2)
@@ -178,7 +190,13 @@ impl UdpProxy {
 
                             let mut s = stats.write().await;
                             s.packets_sent += 1;
+                            s.packets_expected += 1;
                             s.bytes_sent += len as u64;
+                            // Update packet loss: sent packets without matching response
+                            if s.packets_expected > 0 {
+                                let lost = s.packets_expected.saturating_sub(s.packets_received);
+                                s.packet_loss_percent = (lost as f64 / s.packets_expected as f64) * 100.0;
+                            }
                         }
                         Err(e) => {
                             if running.load(Ordering::SeqCst) {
@@ -213,13 +231,29 @@ impl UdpProxy {
                     match result {
                         Ok((len, _src)) => {
                             if let Some(pkt) = PlgPacket::parse(&buf[..len]) {
-                                // Handle keepalive response -> measure RTT
+                                // Handle keepalive response -> measure RTT + jitter
                                 if pkt.is_keepalive() {
                                     let mut ka = keepalive_sent.lock().await;
                                     if let Some(sent_time) = ka.remove(&pkt.seq_number) {
                                         let rtt = sent_time.elapsed().as_secs_f64() * 1000.0;
                                         let mut s = stats.write().await;
                                         s.last_rtt_ms = Some(rtt);
+
+                                        // Track RTT history (last 30 samples)
+                                        s.rtt_history.push(rtt);
+                                        if s.rtt_history.len() > 30 {
+                                            s.rtt_history.remove(0);
+                                        }
+
+                                        // Calculate jitter (std deviation of RTT)
+                                        if s.rtt_history.len() >= 2 {
+                                            let n = s.rtt_history.len() as f64;
+                                            let mean = s.rtt_history.iter().sum::<f64>() / n;
+                                            let variance = s.rtt_history.iter()
+                                                .map(|r| (r - mean).powi(2))
+                                                .sum::<f64>() / n;
+                                            s.jitter_ms = Some(variance.sqrt());
+                                        }
                                     }
                                     continue;
                                 }

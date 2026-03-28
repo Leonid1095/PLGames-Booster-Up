@@ -24,6 +24,8 @@ const columns = [
       { label: 'FAQ', href: '/#faq' },
       { label: 'Telegram', href: '#' },
       { label: 'GitHub', href: 'https://github.com/Leonid1095/PLGames-Booster-Up' },
+      { label: 'Соглашение', href: '/terms' },
+      { label: 'Конфиденциальность', href: '/privacy' },
     ],
   },
 ];

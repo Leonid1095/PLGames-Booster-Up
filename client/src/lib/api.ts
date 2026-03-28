@@ -133,6 +133,12 @@ export async function activateTrial(): Promise<import("./types").TrialResponse> 
   return invoke("cmd_activate_trial");
 }
 
+// ── Game Launch ────────────────────────────────────────────────────
+
+export async function launchGame(exePath: string): Promise<void> {
+  return invoke("cmd_launch_game", { exePath });
+}
+
 // ── Admin Check ────────────────────────────────────────────────────
 
 export async function checkAdmin(): Promise<boolean> {
