@@ -25,3 +25,4 @@ class User(BaseModel):
     subscriptions = relationship("Subscription", back_populates="user", lazy="selectin")
     refresh_tokens = relationship("RefreshToken", back_populates="user", lazy="selectin")
     payments = relationship("Payment", back_populates="user", lazy="selectin")
+    password_reset_tokens = relationship("PasswordResetToken", back_populates="user", lazy="selectin")

@@ -33,7 +33,9 @@ export function formatDate(iso: string | null | undefined): string {
 }
 
 export const TIER_NAMES: Record<string, string> = {
+  free: 'Бесплатный',
   trial: 'Пробный',
-  basic: 'Базовый',
-  pro: 'Про',
+  monthly: 'Месячный',
+  quarterly: 'Квартальный',
+  yearly: 'Годовой',
 };

@@ -62,6 +62,12 @@ export default function LoginPage() {
             required
           />
 
+          <div className="text-right -mt-2">
+            <Link href="/forgot-password" className="text-sm text-brand hover:text-brand-light transition-colors">
+              Забыли пароль?
+            </Link>
+          </div>
+
           {error && (
             <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-2.5 text-sm text-red-400">
               {error}

@@ -4,28 +4,31 @@ import { cn } from '@/lib/utils';
 
 const tiers = [
   {
-    name: 'Пробный',
-    price: 'Бесплатно',
-    period: '7 дней',
-    features: ['1 игра одновременно', 'Все узлы', 'PLG Protocol', 'Базовая поддержка'],
-    cta: 'Попробовать бесплатно',
-    popular: false,
-  },
-  {
-    name: 'Базовый',
-    price: '149 ₽',
-    period: 'в месяц',
-    features: ['3 игры одновременно', 'Все узлы', 'PLG Protocol + Multipath', 'Приоритетная поддержка', 'Статистика сессий'],
-    cta: 'Подключить',
-    popular: true,
-  },
-  {
-    name: 'Про',
+    name: 'Месячный',
     price: '299 ₽',
     period: 'в месяц',
-    features: ['Безлимит игр', 'Все узлы + приоритет', 'PLG Protocol + Multipath', 'VIP поддержка', 'Детальная аналитика', 'API доступ'],
+    features: ['Все игры', 'Все узлы', 'PLG Protocol + Multipath', 'Приоритетная поддержка', 'Статистика сессий'],
     cta: 'Подключить',
     popular: false,
+    badge: null as string | null,
+  },
+  {
+    name: 'Квартальный',
+    price: '749 ₽',
+    period: 'за 3 месяца',
+    features: ['Все игры', 'Все узлы', 'PLG Protocol + Multipath', 'Приоритетная поддержка', 'Статистика сессий', 'Экономия 16%'],
+    cta: 'Подключить',
+    popular: true,
+    badge: '250 ₽/мес',
+  },
+  {
+    name: 'Годовой',
+    price: '1 999 ₽',
+    period: 'за 12 месяцев',
+    features: ['Все игры', 'Все узлы + приоритет', 'PLG Protocol + Multipath', 'VIP поддержка', 'Детальная аналитика', 'Экономия 44%'],
+    cta: 'Подключить',
+    popular: false,
+    badge: '167 ₽/мес',
   },
 ];
 
@@ -37,7 +40,7 @@ export function PricingSection() {
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Тарифы</h2>
-          <p className="text-text-secondary max-w-xl mx-auto text-lg">Начни бесплатно. Обновись, когда будешь готов.</p>
+          <p className="text-text-secondary max-w-xl mx-auto text-lg">7 дней бесплатно без привязки карты. Выбери план, когда будешь готов.</p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto items-start">
@@ -60,8 +63,10 @@ export function PricingSection() {
               <h3 className="text-lg font-semibold text-white mb-1">{tier.name}</h3>
               <div className="mb-6">
                 <span className="text-3xl font-bold text-white">{tier.price}</span>
-                {tier.period !== '7 дней' && <span className="text-sm text-text-muted ml-1">/ {tier.period}</span>}
-                {tier.period === '7 дней' && <span className="text-sm text-text-muted ml-2">{tier.period}</span>}
+                <span className="text-sm text-text-muted ml-1">/ {tier.period}</span>
+                {tier.badge && (
+                  <p className="text-sm text-accent-green font-medium mt-1">{tier.badge}</p>
+                )}
               </div>
 
               <ul className="space-y-3 mb-8 flex-1">

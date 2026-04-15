@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.models.password_reset_token import PasswordResetToken
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 
@@ -93,3 +94,52 @@ async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
 async def get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
     result = await db.execute(select(User).where(User.id == user_id))
     return result.scalar_one_or_none()
+
+
+async def create_password_reset_token(db: AsyncSession, user_id: str) -> str:
+    token_value = secrets.token_urlsafe(64)
+    token_hash_value = hash_token(token_value)
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        minutes=settings.password_reset_token_expire_minutes
+    )
+    prt = PasswordResetToken(
+        user_id=user_id,
+        token_hash=token_hash_value,
+        expires_at=expires_at,
+    )
+    db.add(prt)
+    await db.commit()
+    return token_value
+
+
+async def verify_password_reset_token(
+    db: AsyncSession, token_value: str
+) -> PasswordResetToken | None:
+    token_hash_value = hash_token(token_value)
+    result = await db.execute(
+        select(PasswordResetToken).where(
+            PasswordResetToken.token_hash == token_hash_value,
+            PasswordResetToken.revoked.is_(False),
+            PasswordResetToken.expires_at > datetime.now(timezone.utc),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def revoke_all_password_reset_tokens(db: AsyncSession, user_id: str) -> None:
+    from sqlalchemy import update
+
+    await db.execute(
+        update(PasswordResetToken)
+        .where(
+            PasswordResetToken.user_id == user_id,
+            PasswordResetToken.revoked.is_(False),
+        )
+        .values(revoked=True)
+    )
+    await db.commit()
+
+
+async def update_user_password(db: AsyncSession, user: User, new_password: str) -> None:
+    user.password_hash = hash_password(new_password)
+    await db.commit()

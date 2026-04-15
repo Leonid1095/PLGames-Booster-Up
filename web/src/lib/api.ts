@@ -69,6 +69,53 @@ export interface SessionHistoryItem {
   bytes_received: number;
 }
 
+export interface PlanInfo {
+  name: string;
+  tier: string;
+  price_monthly: number;
+  price_total: number;
+  duration_days: number;
+  currency: string;
+}
+
+export interface PaymentLinkResponse {
+  payment_id: string;
+  payment_url: string;
+  amount: number;
+  original_amount: number | null;
+  discount: number | null;
+  promo_code: string | null;
+  plan: string;
+}
+
+export interface SubscriptionInfo {
+  tier: string;
+  plan: string;
+  started_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+  cancelled_at: string | null;
+  days_remaining: number;
+}
+
+export interface PaymentHistoryItem {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  plan: string;
+  created_at: string;
+}
+
+export interface PromoCheckResponse {
+  valid: boolean;
+  code: string;
+  discount_percent: number;
+  discount_amount: number | null;
+  final_price: number | null;
+  message: string;
+}
+
 export interface ApiError {
   detail: string;
 }
@@ -169,6 +216,24 @@ export const api = {
         body: JSON.stringify({ email, password }),
       });
     },
+    forgotPassword(email: string) {
+      return apiFetch<{ message: string }>('/api/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+    },
+    resetPassword(token: string, new_password: string) {
+      return apiFetch<{ message: string }>('/api/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, new_password }),
+      });
+    },
+    changePassword(old_password: string, new_password: string) {
+      return apiFetch<{ message: string }>('/api/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ old_password, new_password }),
+      });
+    },
   },
 
   users: {
@@ -205,6 +270,40 @@ export const api = {
   sessions: {
     history() {
       return apiFetch<SessionHistoryItem[]>('/api/sessions/history');
+    },
+  },
+
+  billing: {
+    plans() {
+      return apiFetch<PlanInfo[]>('/api/billing/plans');
+    },
+    subscribe(plan: string, promo_code?: string) {
+      return apiFetch<PaymentLinkResponse>('/api/billing/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({ plan, promo_code: promo_code || undefined }),
+      });
+    },
+    activateTrial() {
+      return apiFetch<SubscriptionInfo>('/api/billing/trial', {
+        method: 'POST',
+      });
+    },
+    checkPromo(code: string, plan: string) {
+      return apiFetch<PromoCheckResponse>('/api/billing/promo/check', {
+        method: 'POST',
+        body: JSON.stringify({ code, plan }),
+      });
+    },
+    getSubscription() {
+      return apiFetch<SubscriptionInfo>('/api/billing/subscription');
+    },
+    cancel() {
+      return apiFetch<SubscriptionInfo>('/api/billing/cancel', {
+        method: 'POST',
+      });
+    },
+    paymentHistory() {
+      return apiFetch<PaymentHistoryItem[]>('/api/billing/payments');
     },
   },
 };

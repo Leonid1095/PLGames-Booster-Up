@@ -35,11 +35,25 @@ class Settings(BaseSettings):
     # Domain
     domain: str = ""
 
+    # Email / SMTP
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+
+    # Password Reset
+    password_reset_token_expire_minutes: int = 60
+
     # Relay node IPs (for seed data)
     relay_de_public_ip: str = ""
     relay_se_public_ip: str = ""
     relay_us_public_ip: str = ""
     relay_lv_public_ip: str = ""
+
+    @property
+    def frontend_url(self) -> str:
+        return self.cors_origins[0] if self.cors_origins else "http://localhost:3000"
 
     @property
     def database_url(self) -> str:

@@ -7,7 +7,10 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from app.config import settings
 
 # Per-path rate limit overrides (requests, window_seconds)
-AUTH_PATHS = {"/api/auth/register", "/api/auth/login", "/api/auth/refresh"}
+AUTH_PATHS = {
+    "/api/auth/register", "/api/auth/login", "/api/auth/refresh",
+    "/api/auth/forgot-password", "/api/auth/reset-password", "/api/auth/change-password",
+}
 BILLING_PATHS = {"/api/billing/subscribe", "/api/billing/webhook", "/api/billing/trial"}
 AUTH_LIMIT = (5, 60)  # 5 req per 60s
 BILLING_LIMIT = (10, 60)  # 10 req per 60s
