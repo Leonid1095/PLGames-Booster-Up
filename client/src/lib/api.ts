@@ -145,6 +145,16 @@ export async function checkAdmin(): Promise<boolean> {
   return invoke("cmd_check_admin");
 }
 
+// ── Updates ─────────────────────────────────────────────────────────
+
+export async function checkUpdate(): Promise<import("./types").UpdateInfo> {
+  return invoke("cmd_check_update");
+}
+
+export async function installUpdate(): Promise<void> {
+  return invoke("cmd_install_update");
+}
+
 // ── Utils ───────────────────────────────────────────────────────────
 
 export async function getAppVersion(): Promise<string> {

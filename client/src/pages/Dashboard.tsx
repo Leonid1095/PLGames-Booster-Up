@@ -5,7 +5,7 @@ import Titlebar from "../components/Titlebar";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import * as api from "../lib/api";
-import type { User, GameProfile, NodeInfo, BoostStatus, SmartGameDetectedPayload, SmartAutoConnectedPayload, SmartBestNodePayload } from "../lib/types";
+import type { User, GameProfile, NodeInfo, BoostStatus, UpdateInfo, SmartGameDetectedPayload, SmartAutoConnectedPayload, SmartBestNodePayload } from "../lib/types";
 import { TIER_NAMES } from "../lib/types";
 import { formatBytes } from "../lib/utils";
 
@@ -24,6 +24,8 @@ export default function Dashboard() {
   const [smartNotification, setSmartNotification] = useState<string | null>(null);
   const [detectedGame, setDetectedGame] = useState<string | null>(null);
   const [activatingTrial, setActivatingTrial] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState<UpdateInfo | null>(null);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionStartRef = useRef<number>(0);
@@ -58,6 +60,11 @@ export default function Dashboard() {
         startTimer();
       }
     });
+
+    // Background update check (non-blocking)
+    api.checkUpdate().then((info) => {
+      if (info.available) setUpdateAvailable(info);
+    }).catch(() => { /* silent */ });
 
     // Smart monitor event listeners
     const unlisteners: (() => void)[] = [];
@@ -294,6 +301,34 @@ export default function Dashboard() {
       )}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {/* Update available banner */}
+        {updateAvailable?.available && (
+          <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-brand/10 border border-brand/30">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-brand">
+                Доступна v{updateAvailable.version}
+              </p>
+              {updateAvailable.body && (
+                <p className="text-[10px] text-text-muted truncate">{updateAvailable.body}</p>
+              )}
+            </div>
+            <button
+              onClick={async () => {
+                setInstallingUpdate(true);
+                try {
+                  await api.installUpdate();
+                } catch {
+                  setInstallingUpdate(false);
+                }
+              }}
+              disabled={installingUpdate}
+              className="shrink-0 px-2.5 py-1 rounded-lg bg-brand text-white text-[10px] font-medium hover:bg-brand-light transition-colors disabled:opacity-50"
+            >
+              {installingUpdate ? "Установка..." : "Обновить"}
+            </button>
+          </div>
+        )}
+
         {/* Detected game indicator */}
         {detectedGame && !isConnected && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20">

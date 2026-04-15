@@ -3,13 +3,17 @@ import { useState, useEffect } from "react";
 import Titlebar from "../components/Titlebar";
 import Card from "../components/ui/Card";
 import * as api from "../lib/api";
-import type { AppSettings } from "../lib/types";
+import type { AppSettings, UpdateInfo } from "../lib/types";
 
 export default function Settings() {
   const navigate = useNavigate();
   const [version, setVersion] = useState("");
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
+  const [updateError, setUpdateError] = useState("");
 
   useEffect(() => {
     api.getAppVersion().then(setVersion);
@@ -93,15 +97,68 @@ export default function Settings() {
           )}
         </Card>
 
-        {/* About */}
+        {/* About & Updates */}
         <Card>
-          <p className="text-sm text-text-secondary">О программе</p>
-          <p className="text-xs text-text-muted mt-1">
-            PLGames Booster v{version || "..."}
-          </p>
-          <p className="text-xs text-text-muted">
-            Game network booster with PLG Protocol
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="text-sm text-text-secondary">О программе</p>
+              <p className="text-xs text-text-muted mt-1">
+                PLGames Booster v{version || "..."}
+              </p>
+            </div>
+            {updateInfo?.available ? (
+              <button
+                onClick={async () => {
+                  setInstallingUpdate(true);
+                  setUpdateError("");
+                  try {
+                    await api.installUpdate();
+                  } catch (e) {
+                    setUpdateError(String(e));
+                    setInstallingUpdate(false);
+                  }
+                }}
+                disabled={installingUpdate}
+                className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-medium hover:bg-green-600 transition-colors disabled:opacity-50"
+              >
+                {installingUpdate ? "Установка..." : `Обновить до v${updateInfo.version}`}
+              </button>
+            ) : (
+              <button
+                onClick={async () => {
+                  setCheckingUpdate(true);
+                  setUpdateError("");
+                  setUpdateInfo(null);
+                  try {
+                    const info = await api.checkUpdate();
+                    setUpdateInfo(info);
+                  } catch (e) {
+                    setUpdateError(String(e));
+                  } finally {
+                    setCheckingUpdate(false);
+                  }
+                }}
+                disabled={checkingUpdate}
+                className="px-3 py-1.5 rounded-lg bg-surface-border text-text-secondary text-xs font-medium hover:bg-surface-hover transition-colors disabled:opacity-50"
+              >
+                {checkingUpdate ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-3 h-3 border-2 border-text-muted border-t-transparent rounded-full animate-spin" />
+                    Проверка...
+                  </span>
+                ) : "Проверить обновления"}
+              </button>
+            )}
+          </div>
+          {updateInfo && !updateInfo.available && (
+            <p className="text-xs text-green-400">У вас последняя версия</p>
+          )}
+          {updateInfo?.available && updateInfo.body && (
+            <p className="text-xs text-text-muted mt-1">{updateInfo.body}</p>
+          )}
+          {updateError && (
+            <p className="text-xs text-red-400 mt-1">{updateError}</p>
+          )}
         </Card>
       </div>
     </>

@@ -141,6 +141,14 @@ export interface TrialResponse {
   days_remaining: number;
 }
 
+// ── Updates ────────────────────────────────────────────────────────
+
+export interface UpdateInfo {
+  available: boolean;
+  version: string | null;
+  body: string | null;
+}
+
 // ── Smart Monitor Events ────────────────────────────────────────────
 
 export interface SmartGameDetectedPayload {
