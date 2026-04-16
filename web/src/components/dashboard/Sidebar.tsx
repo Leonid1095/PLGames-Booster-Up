@@ -48,7 +48,37 @@ const navItems = [
   },
 ];
 
-export function Sidebar() {
+const adminItems = [
+  {
+    label: 'Админ: Обзор',
+    href: '/admin',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Управление',
+    href: '/admin/manage',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <path d="M12 3h7a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h7m-4 9h8m-8 4h5" />
+      </svg>
+    ),
+  },
+  {
+    label: 'Сессии',
+    href: '/admin/sessions',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+      </svg>
+    ),
+  },
+];
+
+export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -72,6 +102,29 @@ export function Sidebar() {
             </Link>
           );
         })}
+        {isAdmin && (
+          <>
+            <div className="my-3 border-t border-surface-border" />
+            {adminItems.map((item) => {
+              const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
+                    active
+                      ? 'bg-red-500/10 text-red-400'
+                      : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary',
+                  )}
+                >
+                  {item.icon}
+                  {item.label}
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
     </aside>
   );

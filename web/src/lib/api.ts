@@ -14,6 +14,7 @@ export interface User {
   username: string;
   subscription_tier: string;
   subscription_expires_at: string | null;
+  is_admin: boolean;
   created_at: string;
 }
 
@@ -118,6 +119,110 @@ export interface PromoCheckResponse {
 
 export interface ApiError {
   detail: string;
+}
+
+// --- Admin Types ---
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  per_page: number;
+  pages: number;
+}
+
+export interface AdminStats {
+  total_users: number;
+  active_subscriptions: number;
+  active_sessions: number;
+  revenue_30d: number;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  username: string;
+  subscription_tier: string;
+  subscription_expires_at: string | null;
+  trial_used: boolean;
+  is_admin: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminNode {
+  id: string;
+  name: string;
+  location: string;
+  city: string;
+  ip_address: string;
+  status: string;
+  current_load: number;
+  max_sessions: number;
+  relay_port: number;
+  relay_api_port: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminSession {
+  id: string;
+  user_id: string;
+  node_id: string;
+  game_profile_id: string;
+  session_token: number;
+  status: string;
+  started_at: string | null;
+  ended_at: string | null;
+  bytes_sent: number;
+  bytes_received: number;
+  avg_ping: number | null;
+  packet_loss: number | null;
+  backup_node_id: string | null;
+  multipath_enabled: boolean;
+  created_at: string;
+}
+
+export interface AdminSubscription {
+  id: string;
+  user_id: string;
+  tier: string;
+  plan: string;
+  started_at: string;
+  expires_at: string;
+  is_active: boolean;
+  cancelled_at: string | null;
+  payment_id: string | null;
+  created_at: string;
+}
+
+export interface AdminPayment {
+  id: string;
+  user_id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  plan: string;
+  promo_code: string | null;
+  original_amount: number | null;
+  donatepay_id: string | null;
+  subscription_id: string | null;
+  created_at: string;
+}
+
+export interface AdminPromo {
+  id: string;
+  code: string;
+  discount_percent: number;
+  discount_amount: number | null;
+  max_uses: number;
+  current_uses: number;
+  valid_from: string | null;
+  valid_until: string | null;
+  applicable_plans: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // --- Token Management ---
@@ -304,6 +409,75 @@ export const api = {
     },
     paymentHistory() {
       return apiFetch<PaymentHistoryItem[]>('/api/billing/payments');
+    },
+  },
+
+  admin: {
+    stats() {
+      return apiFetch<AdminStats>('/api/admin/stats');
+    },
+    users(page = 1, search?: string) {
+      const sp = new URLSearchParams({ page: String(page), per_page: '20' });
+      if (search) sp.set('search', search);
+      return apiFetch<PaginatedResponse<AdminUser>>(`/api/admin/users?${sp}`);
+    },
+    updateUser(id: string, data: Record<string, unknown>) {
+      return apiFetch<AdminUser>(`/api/admin/users/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+    nodes() {
+      return apiFetch<AdminNode[]>('/api/admin/nodes');
+    },
+    createNode(data: Record<string, unknown>) {
+      return apiFetch<AdminNode>('/api/admin/nodes', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    updateNode(id: string, data: Record<string, unknown>) {
+      return apiFetch<AdminNode>(`/api/admin/nodes/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+    deleteNode(id: string) {
+      return apiFetch<AdminNode>(`/api/admin/nodes/${id}`, { method: 'DELETE' });
+    },
+    sessions(page = 1, status?: string) {
+      const sp = new URLSearchParams({ page: String(page), per_page: '20' });
+      if (status) sp.set('session_status', status);
+      return apiFetch<PaginatedResponse<AdminSession>>(`/api/admin/sessions?${sp}`);
+    },
+    stopSession(id: string) {
+      return apiFetch<AdminSession>(`/api/admin/sessions/${id}/stop`, { method: 'POST' });
+    },
+    subscriptions(page = 1) {
+      return apiFetch<PaginatedResponse<AdminSubscription>>(`/api/admin/subscriptions?page=${page}&per_page=20`);
+    },
+    payments(page = 1, status?: string) {
+      const sp = new URLSearchParams({ page: String(page), per_page: '20' });
+      if (status) sp.set('payment_status', status);
+      return apiFetch<PaginatedResponse<AdminPayment>>(`/api/admin/payments?${sp}`);
+    },
+    promos() {
+      return apiFetch<AdminPromo[]>('/api/admin/promos');
+    },
+    createPromo(data: Record<string, unknown>) {
+      return apiFetch<AdminPromo>('/api/admin/promos', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+    updatePromo(id: string, data: Record<string, unknown>) {
+      return apiFetch<AdminPromo>(`/api/admin/promos/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+    deletePromo(id: string) {
+      return apiFetch<AdminPromo>(`/api/admin/promos/${id}`, { method: 'DELETE' });
     },
   },
 };

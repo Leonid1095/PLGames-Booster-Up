@@ -30,7 +30,7 @@ function DashboardGuard({ children }: { children: React.ReactNode }) {
     <>
       <Navbar />
       <div className="flex pt-16">
-        <Sidebar />
+        <Sidebar isAdmin={user?.is_admin === true} />
         <main className="flex-1 p-6 lg:p-8 min-h-[calc(100vh-4rem)]">
           {children}
         </main>
