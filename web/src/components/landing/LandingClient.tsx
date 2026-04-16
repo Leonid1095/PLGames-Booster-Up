@@ -8,6 +8,7 @@ import { HowItWorksSection } from './HowItWorksSection';
 import { TechnologySection } from './TechnologySection';
 import { AdvantagesSection } from './AdvantagesSection';
 import { GlobalCoverageSection } from './GlobalCoverageSection';
+import { TestimonialsSection } from './TestimonialsSection';
 import { PricingSection } from './PricingSection';
 import { FaqSection } from './FaqSection';
 import { CtaSection } from './CtaSection';
@@ -25,6 +26,7 @@ export function LandingClient({ gamesSlot }: { gamesSlot: React.ReactNode }) {
         {gamesSlot}
         <AdvantagesSection />
         <GlobalCoverageSection />
+        <TestimonialsSection />
         <PricingSection />
         <FaqSection />
         <CtaSection />

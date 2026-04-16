@@ -4,5 +4,6 @@ Disallow: /dashboard
 Disallow: /history
 Disallow: /subscription
 Disallow: /settings
+Disallow: /reset-password
 
 Sitemap: https://plgames-boost.duckdns.org/sitemap.xml
