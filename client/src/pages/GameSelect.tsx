@@ -96,12 +96,20 @@ export default function GameSelect() {
                     alt={game.name}
                     className="w-full h-full object-cover"
                     loading="lazy"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      if (e.currentTarget.nextElementSibling) {
+                        (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+                      }
+                    }}
                   />
-                ) : (
-                  <span className="text-brand text-xs font-bold">
-                    {game.name.substring(0, 2).toUpperCase()}
-                  </span>
-                )}
+                ) : null}
+                <span
+                  className="text-brand text-xs font-bold items-center justify-center w-full h-full"
+                  style={{ display: game.icon_url ? 'none' : 'flex' }}
+                >
+                  {game.name.substring(0, 2).toUpperCase()}
+                </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-text-primary text-sm truncate">

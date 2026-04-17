@@ -92,8 +92,10 @@ export async function GamesSection() {
                       loading="lazy"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-brand/60 group-hover:text-brand transition-colors">
-                      {game.name.charAt(0)}
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand/20 to-surface-bg">
+                      <span className="text-xl font-bold text-brand/70 group-hover:text-brand transition-colors tracking-wider">
+                        {game.name.split(/[\s:]+/).map(w => w[0]).join('').slice(0, 3).toUpperCase()}
+                      </span>
                     </div>
                   )}
                 </div>
