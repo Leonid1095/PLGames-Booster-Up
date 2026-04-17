@@ -266,7 +266,7 @@ impl WinDivertProxy {
                         if let Ok(mut s) = stats.try_write() {
                             s.packets_sent += 1;
                             s.bytes_sent += len;
-                        }
+                        };
                     }
 
                     // DO NOT re-inject the packet — we consumed it
