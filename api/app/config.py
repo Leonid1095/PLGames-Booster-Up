@@ -73,3 +73,11 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Warn about unsafe defaults at import time
+if not settings.api_debug and settings.jwt_secret_key in ("changeme-secret", ""):
+    import warnings
+    warnings.warn(
+        "JWT_SECRET_KEY is set to default value! Set a strong random key in .env for production.",
+        stacklevel=1,
+    )

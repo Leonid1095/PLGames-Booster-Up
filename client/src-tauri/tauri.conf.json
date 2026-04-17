@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' https://cdn.cloudflare.steamstatic.com data:; connect-src 'self' https://plgames-boost.duckdns.org https://github.com; font-src 'self' data:"
     },
     "trayIcon": {
       "iconPath": "icons/icon.png",
