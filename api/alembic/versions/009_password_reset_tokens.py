@@ -30,9 +30,8 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_password_reset_tokens_token_hash", "password_reset_tokens", ["token_hash"])
+    # index already created by index=True in create_table above
 
 
 def downgrade() -> None:
-    op.drop_index("ix_password_reset_tokens_token_hash", table_name="password_reset_tokens")
     op.drop_table("password_reset_tokens")
