@@ -77,9 +77,13 @@ impl WinDivertProxy {
             bytes_sent: 0,
             bytes_received: 0,
             last_rtt_ms: None,
+            jitter_ms: None,
+            packet_loss_percent: 0.0,
             multipath_enabled: actual_multipath,
             multipath_active: actual_multipath,
             duplicates_dropped: 0,
+            rtt_history: Vec::with_capacity(30),
+            packets_expected: 0,
         }));
 
         // Connection tracking: (local_port, remote_ip, remote_port) → local_ip
@@ -447,7 +451,7 @@ impl WinDivertProxy {
                         remote_ip, local_ip, remote_port, local_port, &pkt.payload,
                     );
 
-                    let addr = unsafe { WinDivertAddress::new() };
+                    let addr = unsafe { <WinDivertAddress<windivert::layer::NetworkLayer>>::new() };
                     let _ = inject_handle.send(&WinDivertPacket {
                         address: addr,
                         data: raw_pkt.into(),
