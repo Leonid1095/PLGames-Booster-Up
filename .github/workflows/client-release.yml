@@ -35,6 +35,13 @@ jobs:
           New-Item -ItemType Directory -Force -Path client/src-tauri/resources/windivert
           Copy-Item windivert-extracted/WinDivert-2.2.2-A/x64/* client/src-tauri/resources/windivert/
 
+      - name: Pre-place WinDivert next to exe for NSIS bundling
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path client/src-tauri/target/release
+          Copy-Item client/src-tauri/resources/windivert/WinDivert.dll client/src-tauri/target/release/
+          Copy-Item client/src-tauri/resources/windivert/WinDivert64.sys client/src-tauri/target/release/
+
       - name: Build Tauri
         uses: tauri-apps/tauri-action@v0
         env:
