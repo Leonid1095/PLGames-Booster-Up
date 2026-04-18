@@ -31,18 +31,51 @@ pub fn run() {
             log::info!("PLGames Booster v{} starting", env!("CARGO_PKG_VERSION"));
             log::info!("API URL: {}", config.api_url);
 
-            // Add resources/windivert to PATH so WinDivert.dll is found at runtime
+            // Ensure WinDivert DLLs are next to the exe (required for LoadLibrary)
             #[cfg(target_os = "windows")]
             {
-                if let Ok(resource_dir) = app.path().resource_dir() {
-                    let wd_path = resource_dir.join("resources").join("windivert");
-                    if wd_path.exists() {
-                        if let Ok(current_path) = std::env::var("PATH") {
-                            std::env::set_var("PATH", format!("{};{}", wd_path.display(), current_path));
-                            log::info!("WinDivert path added: {}", wd_path.display());
+                if let Ok(exe_path) = std::env::current_exe() {
+                    let exe_dir = exe_path.parent().unwrap_or(std::path::Path::new("."));
+                    let dll_target = exe_dir.join("WinDivert.dll");
+
+                    if !dll_target.exists() {
+                        // Try multiple source locations
+                        let candidates = [
+                            exe_dir.join("resources").join("windivert"),
+                            exe_dir.join("_up_").join("resources").join("windivert"),
+                        ];
+
+                        // Also check Tauri resource_dir
+                        let mut found = false;
+                        let mut search_paths = candidates.to_vec();
+                        if let Ok(res_dir) = app.path().resource_dir() {
+                            search_paths.push(res_dir.join("resources").join("windivert"));
+                            search_paths.push(res_dir.join("windivert"));
+                        }
+
+                        for src_dir in &search_paths {
+                            let dll_src = src_dir.join("WinDivert.dll");
+                            let sys_src = src_dir.join("WinDivert64.sys");
+                            if dll_src.exists() {
+                                log::info!("Copying WinDivert from {}", src_dir.display());
+                                let _ = std::fs::copy(&dll_src, &dll_target);
+                                let sys_target = exe_dir.join("WinDivert64.sys");
+                                if sys_src.exists() && !sys_target.exists() {
+                                    let _ = std::fs::copy(&sys_src, &sys_target);
+                                }
+                                found = true;
+                                break;
+                            }
+                        }
+
+                        if !found {
+                            log::warn!(
+                                "WinDivert.dll not found in any of: {:?}. WinDivert mode will be unavailable.",
+                                search_paths.iter().map(|p| p.display().to_string()).collect::<Vec<_>>()
+                            );
                         }
                     } else {
-                        log::warn!("WinDivert resources not found at {}", wd_path.display());
+                        log::info!("WinDivert.dll already present at {}", dll_target.display());
                     }
                 }
             }

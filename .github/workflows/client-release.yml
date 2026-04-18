@@ -74,8 +74,9 @@ jobs:
             $zipDir = "portable"
             New-Item -ItemType Directory -Force -Path $zipDir
             Copy-Item $exePath.FullName "$zipDir/PLGames Booster.exe"
-            New-Item -ItemType Directory -Force -Path "$zipDir/resources/windivert"
-            Copy-Item "client/src-tauri/resources/windivert/*" "$zipDir/resources/windivert/"
+            # WinDivert DLLs next to exe (required for LoadLibrary)
+            Copy-Item "client/src-tauri/resources/windivert/WinDivert.dll" "$zipDir/"
+            Copy-Item "client/src-tauri/resources/windivert/WinDivert64.sys" "$zipDir/"
             Compress-Archive -Path "$zipDir/*" -DestinationPath "PLGames.Booster_${{ github.ref_name }}_portable.zip"
           }
 
