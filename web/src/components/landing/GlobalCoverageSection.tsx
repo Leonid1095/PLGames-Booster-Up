@@ -1,8 +1,8 @@
 const nodes = [
-  { location: 'Франкфурт', country: 'Германия', flag: '🇩🇪', status: 'active', ping: '12 мс' },
-  { location: 'Стокгольм', country: 'Швеция', flag: '🇸🇪', status: 'active', ping: '18 мс' },
-  { location: 'Рига', country: 'Латвия', flag: '🇱🇻', status: 'planned', ping: '—' },
-  { location: 'Нью-Йорк', country: 'США', flag: '🇺🇸', status: 'planned', ping: '—' },
+  { location: 'Франкфурт', country: 'Германия', flag: '🇩🇪', status: 'active' as const },
+  { location: 'Стокгольм', country: 'Швеция', flag: '🇸🇪', status: 'active' as const },
+  { location: 'Рига', country: 'Латвия', flag: '🇱🇻', status: 'active' as const },
+  { location: 'Нью-Йорк', country: 'США', flag: '🇺🇸', status: 'active' as const },
 ];
 
 export function GlobalCoverageSection() {
@@ -12,9 +12,9 @@ export function GlobalCoverageSection() {
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Глобальная сеть узлов</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Серверы</h2>
           <p className="text-text-secondary max-w-xl mx-auto text-lg">
-            Серверы в ключевых точках — автоматический выбор ближайшего узла для минимального пинга
+            4 relay-узла в Европе и США — автоматический выбор ближайшего для минимального пинга
           </p>
         </div>
 
@@ -26,28 +26,13 @@ export function GlobalCoverageSection() {
             >
               <div className="flex items-center justify-between mb-4">
                 <span className="text-2xl">{node.flag}</span>
-                {node.status === 'active' ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-accent-green">
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
-                    online
-                  </span>
-                ) : (
-                  <span className="text-xs text-text-muted">скоро</span>
-                )}
+                <span className="inline-flex items-center gap-1.5 text-xs text-accent-green">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
+                  online
+                </span>
               </div>
               <h3 className="text-lg font-semibold text-white mb-1">{node.location}</h3>
-              <p className="text-sm text-text-muted mb-3">{node.country}</p>
-              {node.status === 'active' && (
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 rounded-full bg-surface-hover overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-accent-green to-accent-cyan"
-                      style={{ width: node.ping === '12 мс' ? '85%' : '75%' }}
-                    />
-                  </div>
-                  <span className="text-xs font-medium text-accent-green">{node.ping}</span>
-                </div>
-              )}
+              <p className="text-sm text-text-muted">{node.country}</p>
             </div>
           ))}
         </div>
@@ -59,12 +44,12 @@ export function GlobalCoverageSection() {
               <div className="text-xs text-text-muted mt-1">узла</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-white">3</div>
+              <div className="text-2xl font-bold text-white">2</div>
               <div className="text-xs text-text-muted mt-1">континента</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-accent-green">99.9%</div>
-              <div className="text-xs text-text-muted mt-1">аптайм</div>
+              <div className="text-2xl font-bold text-white">UDP</div>
+              <div className="text-xs text-text-muted mt-1">PLG Protocol</div>
             </div>
           </div>
         </div>

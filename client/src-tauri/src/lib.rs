@@ -31,6 +31,22 @@ pub fn run() {
             log::info!("PLGames Booster v{} starting", env!("CARGO_PKG_VERSION"));
             log::info!("API URL: {}", config.api_url);
 
+            // Add resources/windivert to PATH so WinDivert.dll is found at runtime
+            #[cfg(target_os = "windows")]
+            {
+                if let Ok(resource_dir) = app.path().resource_dir() {
+                    let wd_path = resource_dir.join("resources").join("windivert");
+                    if wd_path.exists() {
+                        if let Ok(current_path) = std::env::var("PATH") {
+                            std::env::set_var("PATH", format!("{};{}", wd_path.display(), current_path));
+                            log::info!("WinDivert path added: {}", wd_path.display());
+                        }
+                    } else {
+                        log::warn!("WinDivert resources not found at {}", wd_path.display());
+                    }
+                }
+            }
+
             // Create API client
             let api = ApiClient::new(&config.api_url);
 

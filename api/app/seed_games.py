@@ -93,4 +93,13 @@ GAMES = [
     # ─── Card / Auto-battler ──────────────────────────────────────────
     {"name": "Hearthstone", "slug": "hearthstone", "exe_names": ["Hearthstone.exe"], "server_ips": ["24.105.0.0/18", "37.244.0.0/18"], "ports": ["1119-1120", "3724"], "protocol": "TCP", "category": "card", "is_popular": False, "icon_url": None},
     {"name": "Teamfight Tactics", "slug": "teamfight-tactics", "exe_names": ["League of Legends.exe"], "server_ips": ["104.160.128.0/17"], "ports": ["5000-5500"], "protocol": "TCP", "category": "card", "is_popular": False, "icon_url": None},
+
+    # ─── New 2025-2026 ──────────────────────────────────────────────
+    {"name": "Arena Breakout: Infinite", "slug": "arena-breakout-infinite", "exe_names": ["ArenaBreakoutInfinite.exe", "ABI-Win64-Shipping.exe"], "server_ips": ["47.236.0.0/15"], "ports": ["17000-17200"], "protocol": "UDP", "category": "fps", "is_popular": True, "icon_url": _steam(2950760)},
+    {"name": "Fragpunk", "slug": "fragpunk", "exe_names": ["Fragpunk.exe", "Fragpunk-Win64-Shipping.exe"], "server_ips": ["159.153.0.0/16"], "ports": ["27015-27050"], "protocol": "UDP", "category": "fps", "is_popular": True, "icon_url": _steam(2694490)},
+    {"name": "Strinova", "slug": "strinova", "exe_names": ["Strinova.exe", "Strinova-Win64-Shipping.exe"], "server_ips": ["47.236.0.0/15"], "ports": ["27015-27050"], "protocol": "UDP", "category": "fps", "is_popular": False, "icon_url": _steam(2669320)},
+    {"name": "Once Human", "slug": "once-human", "exe_names": ["OnceHuman.exe", "OnceHuman-Win64-Shipping.exe"], "server_ips": ["47.236.0.0/15"], "ports": ["27015-27050"], "protocol": "UDP", "category": "survival", "is_popular": False, "icon_url": _steam(2139460)},
+    {"name": "Spectre Divide", "slug": "spectre-divide", "exe_names": ["SpectreClient.exe"], "server_ips": ["159.153.0.0/16"], "ports": ["27015-27050"], "protocol": "UDP", "category": "fps", "is_popular": False, "icon_url": _steam(2246340)},
+    {"name": "Supervive", "slug": "supervive", "exe_names": ["Supervive.exe"], "server_ips": ["159.153.0.0/16"], "ports": ["27015-27050"], "protocol": "UDP", "category": "moba", "is_popular": False, "icon_url": _steam(1283700)},
+    {"name": "inZOI", "slug": "inzoi", "exe_names": ["inZOI.exe"], "server_ips": ["159.153.0.0/16"], "ports": ["27015-27050"], "protocol": "UDP", "category": "mmo", "is_popular": False, "icon_url": _steam(2456740)},
 ]

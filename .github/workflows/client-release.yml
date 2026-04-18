@@ -59,8 +59,29 @@ jobs:
             ### Install
             - **NSIS installer (.exe):** recommended for most users
             - **MSI installer (.msi):** for enterprise/silent deployment
+            - **Portable (.zip):** no install, run from any folder (admin required for WinDivert)
 
             The app will auto-update from previous versions automatically.
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
+
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          $exePath = Get-ChildItem -Path "client/src-tauri/target/release" -Filter "*.exe" | Where-Object { $_.Name -notmatch "setup|uninstall" } | Select-Object -First 1
+          if ($exePath) {
+            $zipDir = "portable"
+            New-Item -ItemType Directory -Force -Path $zipDir
+            Copy-Item $exePath.FullName "$zipDir/PLGames Booster.exe"
+            New-Item -ItemType Directory -Force -Path "$zipDir/resources/windivert"
+            Copy-Item "client/src-tauri/resources/windivert/*" "$zipDir/resources/windivert/"
+            Compress-Archive -Path "$zipDir/*" -DestinationPath "PLGames.Booster_${{ github.ref_name }}_portable.zip"
+          }
+
+      - name: Upload portable ZIP
+        if: hashFiles('PLGames.Booster_*_portable.zip') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: PLGames.Booster_*_portable.zip

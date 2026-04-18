@@ -1,50 +1,3 @@
-import { cn } from '@/lib/utils';
-
-const testimonials = [
-  {
-    name: 'Артём К.',
-    game: 'CS2',
-    tier: 'Квартальный',
-    text: 'Пинг в CS2 упал с 85ms до 48ms. Разница реально ощущается в дуэлях — раньше постоянно проигрывал на пиках, теперь стреляю первым.',
-    ping: { before: 85, after: 48 },
-  },
-  {
-    name: 'Дмитрий В.',
-    game: 'Dota 2',
-    tier: 'Месячный',
-    text: 'Играю на EU серверах из Казахстана. Без бустера 110ms и микрофризы, с PLGames стабильно 65ms. За месяц поднялся на 500 MMR.',
-    ping: { before: 110, after: 65 },
-  },
-  {
-    name: 'Максим Л.',
-    game: 'Valorant',
-    tier: 'Годовой',
-    text: 'Multipath — киллер-фича. Packet loss в Valorant полностью пропал, хотя провайдер паршивый. Подписался на год сразу.',
-    ping: { before: 72, after: 41 },
-  },
-  {
-    name: 'Алиса Н.',
-    game: 'Apex Legends',
-    tier: 'Месячный',
-    text: 'Пробовала ExitLag и WTFast — PLGames дешевле и работает лучше на наших серверах. Пинг ниже, и нет этих рандомных скачков.',
-    ping: { before: 95, after: 58 },
-  },
-  {
-    name: 'Илья С.',
-    game: 'Fortnite',
-    tier: 'Квартальный',
-    text: 'Строю быстрее, задержки при переключении оружия исчезли. Триал убедил за первую же катку, оформил подписку не раздумывая.',
-    ping: { before: 78, after: 45 },
-  },
-  {
-    name: 'Кирилл Р.',
-    game: 'Escape from Tarkov',
-    tier: 'Годовой',
-    text: 'В Таркове каждая миллисекунда решает. PLG Protocol дал стабильные 35ms на EU, десинхрон почти пропал. Лутаю спокойно теперь.',
-    ping: { before: 68, after: 35 },
-  },
-];
-
 export function TestimonialsSection() {
   return (
     <section className="py-24 relative overflow-hidden">
@@ -53,65 +6,77 @@ export function TestimonialsSection() {
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Отзывы игроков
+            Почему PLGames?
           </h2>
           <p className="text-text-secondary max-w-xl mx-auto text-lg">
-            Реальные результаты наших пользователей
+            Сравните с другими решениями
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {testimonials.map((t) => (
+        <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+          {[
+            {
+              title: 'PLGames Booster',
+              highlight: true,
+              features: [
+                { text: 'Кастомный PLG Protocol (UDP)', ok: true },
+                { text: 'Multipath с дублированием', ok: true },
+                { text: 'Автодетект игры', ok: true },
+                { text: 'От 299 ₽/мес', ok: true },
+                { text: 'Серверы в Европе', ok: true },
+                { text: 'Open-source клиент', ok: true },
+              ],
+            },
+            {
+              title: 'Обычный VPN',
+              highlight: false,
+              features: [
+                { text: 'TCP/UDP через туннель', ok: false },
+                { text: 'Без multipath', ok: false },
+                { text: 'Ручная настройка', ok: false },
+                { text: 'От 300-600 ₽/мес', ok: false },
+                { text: 'Много серверов', ok: true },
+                { text: 'Закрытый код', ok: false },
+              ],
+            },
+            {
+              title: 'Без бустера',
+              highlight: false,
+              features: [
+                { text: 'Маршрут провайдера', ok: false },
+                { text: 'Нет защиты от потерь', ok: false },
+                { text: 'Нет оптимизации', ok: false },
+                { text: 'Бесплатно', ok: true },
+                { text: 'Зависит от ISP', ok: false },
+                { text: 'Нет гарантий', ok: false },
+              ],
+            },
+          ].map((col) => (
             <div
-              key={t.name}
-              className="bg-surface-card border border-surface-border rounded-2xl p-6 flex flex-col transition-all duration-200 hover:border-surface-hover"
+              key={col.title}
+              className={`bg-surface-card border rounded-2xl p-7 ${
+                col.highlight ? 'border-brand' : 'border-surface-border'
+              }`}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-brand/20 flex items-center justify-center text-brand text-sm font-bold">
-                    {t.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white">{t.name}</p>
-                    <p className="text-xs text-text-muted">{t.game} · {t.tier}</p>
-                  </div>
-                </div>
-                {/* Stars */}
-                <div className="flex gap-0.5">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <svg key={s} className="w-3.5 h-3.5 text-yellow-400" viewBox="0 0 16 16" fill="currentColor">
-                      <path d="M8 1L10.2 5.5L15 6.2L11.5 9.6L12.4 14.4L8 12.1L3.6 14.4L4.5 9.6L1 6.2L5.8 5.5L8 1Z" />
-                    </svg>
-                  ))}
-                </div>
-              </div>
-
-              {/* Text */}
-              <p className="text-sm text-text-secondary leading-relaxed flex-1 mb-4">
-                &ldquo;{t.text}&rdquo;
-              </p>
-
-              {/* Ping comparison */}
-              <div className="flex items-center gap-3 pt-3 border-t border-surface-border">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-text-muted">Было:</span>
-                  <span className="text-xs font-mono text-red-400">{t.ping.before}ms</span>
-                </div>
-                <svg className="w-4 h-4 text-text-muted" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8h10M10 5l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs text-text-muted">Стало:</span>
-                  <span className="text-xs font-mono text-green-400">{t.ping.after}ms</span>
-                </div>
-                <span className={cn(
-                  'ml-auto text-xs font-medium px-2 py-0.5 rounded-full',
-                  'bg-green-500/10 text-green-400',
-                )}>
-                  -{Math.round(((t.ping.before - t.ping.after) / t.ping.before) * 100)}%
-                </span>
-              </div>
+              <h3 className={`text-lg font-semibold mb-5 ${col.highlight ? 'text-brand' : 'text-white'}`}>
+                {col.title}
+              </h3>
+              <ul className="space-y-3">
+                {col.features.map((f) => (
+                  <li key={f.text} className="flex items-start gap-2.5 text-sm text-text-secondary">
+                    {f.ok ? (
+                      <svg className="w-4 h-4 text-green-400 mt-0.5 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4 text-red-400/60 mt-0.5 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M4.22 4.22a.75.75 0 011.06 0L8 6.94l2.72-2.72a.75.75 0 111.06 1.06L9.06 8l2.72 2.72a.75.75 0 11-1.06 1.06L8 9.06l-2.72 2.72a.75.75 0 01-1.06-1.06L6.94 8 4.22 5.28a.75.75 0 010-1.06z" />
+                      </svg>
+                    )}
+                    {f.text}
+                  </li>
+                ))}
+              </ul>
             </div>
           ))}
         </div>
