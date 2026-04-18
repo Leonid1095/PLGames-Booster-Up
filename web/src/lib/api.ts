@@ -479,5 +479,15 @@ export const api = {
     deletePromo(id: string) {
       return apiFetch<AdminPromo>(`/api/admin/promos/${id}`, { method: 'DELETE' });
     },
+    suggestions(status?: string) {
+      const sp = status ? `?status=${status}` : '';
+      return apiFetch<{ id: string; exe_name: string; window_title: string | null; vote_count: number; status: string; created_at: string }[]>(`/api/admin/suggestions${sp}`);
+    },
+    approveSuggestion(id: string) {
+      return apiFetch<{ status: string; game_id: string; game_name: string }>(`/api/admin/suggestions/${id}/approve`, { method: 'POST' });
+    },
+    rejectSuggestion(id: string) {
+      return apiFetch<{ status: string }>(`/api/admin/suggestions/${id}/reject`, { method: 'POST' });
+    },
   },
 };

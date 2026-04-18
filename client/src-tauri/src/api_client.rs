@@ -381,6 +381,29 @@ impl ApiClient {
         self.handle_response(resp).await
     }
 
+    // ── Game Suggestions ───────────────────────────────────────
+
+    pub async fn suggest_game(
+        &self,
+        token: &str,
+        exe_name: &str,
+        window_title: Option<&str>,
+    ) -> Result<serde_json::Value, ApiError> {
+        let mut body = serde_json::json!({ "exe_name": exe_name });
+        if let Some(title) = window_title {
+            body["window_title"] = serde_json::Value::String(title.to_string());
+        }
+        let resp = self
+            .client
+            .post(self.url("/api/games/suggest"))
+            .bearer_auth(token)
+            .json(&body)
+            .send()
+            .await?;
+
+        self.handle_response(resp).await
+    }
+
     // ── Response handling ───────────────────────────────────────
 
     async fn handle_response<T: serde::de::DeserializeOwned>(

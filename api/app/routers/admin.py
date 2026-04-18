@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.game_profile import GameProfile
+from app.models.game_suggestion import GameSuggestion
 from app.models.node import Node
 from app.models.payment import Payment
 from app.models.promo_code import PromoCode
@@ -514,3 +515,88 @@ async def delete_promo(
     await db.commit()
     await db.refresh(promo)
     return AdminPromoResponse.model_validate(promo)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Game Suggestions
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@router.get("/suggestions")
+async def list_suggestions(
+    status_filter: str | None = Query(None, alias="status"),
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    query = select(GameSuggestion).order_by(GameSuggestion.vote_count.desc())
+    if status_filter:
+        query = query.where(GameSuggestion.status == status_filter)
+    result = await db.execute(query)
+    suggestions = result.scalars().all()
+    return [
+        {
+            "id": str(s.id),
+            "exe_name": s.exe_name,
+            "window_title": s.window_title,
+            "vote_count": s.vote_count,
+            "status": s.status,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+        }
+        for s in suggestions
+    ]
+
+
+@router.post("/suggestions/{suggestion_id}/approve")
+async def approve_suggestion(
+    suggestion_id: uuid.UUID,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(GameSuggestion).where(GameSuggestion.id == suggestion_id)
+    )
+    suggestion = result.scalar_one_or_none()
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="Suggestion not found")
+
+    # Create game profile from suggestion
+    slug = suggestion.exe_name.lower().replace(".exe", "").replace(" ", "-").replace("_", "-")
+    name = suggestion.window_title or suggestion.exe_name.replace(".exe", "")
+
+    game = GameProfile(
+        name=name,
+        slug=slug,
+        exe_names=[suggestion.exe_name],
+        server_ips=[],
+        ports=[],
+        protocol="UDP",
+        category="fps",
+        is_popular=False,
+    )
+    db.add(game)
+    await db.flush()
+
+    suggestion.status = "approved"
+    suggestion.approved_game_id = game.id
+    await db.commit()
+
+    return {"status": "approved", "game_id": str(game.id), "game_name": name}
+
+
+@router.post("/suggestions/{suggestion_id}/reject")
+async def reject_suggestion(
+    suggestion_id: uuid.UUID,
+    admin: User = Depends(get_admin_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(GameSuggestion).where(GameSuggestion.id == suggestion_id)
+    )
+    suggestion = result.scalar_one_or_none()
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="Suggestion not found")
+
+    suggestion.status = "rejected"
+    await db.commit()
+
+    return {"status": "rejected"}

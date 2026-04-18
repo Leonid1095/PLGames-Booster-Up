@@ -820,3 +820,25 @@ fn set_auto_start(enabled: bool) -> Result<(), String> {
     }
     Ok(())
 }
+
+// ── Game Suggestions ───────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn cmd_suggest_game(
+    state: tauri::State<'_, AppState>,
+    exe_name: String,
+    window_title: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let tokens = state.tokens.lock().unwrap().clone();
+    let tokens = tokens.ok_or("Not authenticated")?;
+
+    state
+        .api
+        .suggest_game(
+            &tokens.access_token,
+            &exe_name,
+            window_title.as_deref(),
+        )
+        .await
+        .map_err(|e| format!("{}", e))
+}

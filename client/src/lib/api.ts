@@ -145,6 +145,12 @@ export async function checkAdmin(): Promise<boolean> {
   return invoke("cmd_check_admin");
 }
 
+// ── Game Suggestions ────────────────────────────────────────────────
+
+export async function suggestGame(exeName: string, windowTitle?: string): Promise<{ message: string; status: string }> {
+  return invoke("cmd_suggest_game", { exeName, windowTitle });
+}
+
 // ── Updates ─────────────────────────────────────────────────────────
 
 export async function checkUpdate(): Promise<import("./types").UpdateInfo> {

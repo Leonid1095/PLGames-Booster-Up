@@ -1,5 +1,6 @@
 from app.models.base import Base, BaseModel
 from app.models.game_profile import GameProfile
+from app.models.game_suggestion import GameSuggestion
 from app.models.node import Node
 from app.models.password_reset_token import PasswordResetToken
 from app.models.payment import Payment
@@ -13,6 +14,7 @@ __all__ = [
     "Base",
     "BaseModel",
     "GameProfile",
+    "GameSuggestion",
     "Node",
     "PasswordResetToken",
     "Payment",
