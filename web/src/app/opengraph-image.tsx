@@ -52,12 +52,11 @@ export default async function Image() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'white',
-              fontSize: 28,
-              fontWeight: 800,
             }}
           >
-            PL
+            <svg width="36" height="36" viewBox="0 0 32 32" fill="none">
+              <path d="M16 6l7 10h-4.5v10h-5V16H9l7-10z" fill="white"/>
+            </svg>
           </div>
           <span style={{ fontSize: 48, fontWeight: 800, color: 'white' }}>
             PLGames Booster UP

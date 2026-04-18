@@ -51,8 +51,8 @@ export default function RegisterPage() {
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 text-xl font-bold text-white mb-2">
             <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-              <rect width="28" height="28" rx="6" fill="#6C63FF" />
-              <path d="M8 8h5v12H8V8zm7 0h5v7h-5V8z" fill="white" />
+              <rect width="28" height="28" rx="6" fill="#6C63FF"/>
+              <path d="M14 4l6 9h-4v11h-4V13H8l6-9z" fill="white"/>
             </svg>
             PLGames
           </Link>

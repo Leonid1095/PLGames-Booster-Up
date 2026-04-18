@@ -17,8 +17,8 @@ export function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 text-lg font-bold text-white">
             <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M2 2h6v14H2V2zm8 0h6v8h-6V2z" fill="white" />
+              <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
+                <path d="M16 6l7 10h-4.5v10h-5V16H9l7-10z" fill="white"/>
               </svg>
             </div>
             <span>PLGames</span>

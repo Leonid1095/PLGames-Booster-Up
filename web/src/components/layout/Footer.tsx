@@ -39,8 +39,8 @@ export function Footer() {
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2.5 text-lg font-bold text-white mb-4">
               <div className="w-7 h-7 rounded-md bg-brand flex items-center justify-center">
-                <svg width="14" height="14" viewBox="0 0 18 18" fill="none">
-                  <path d="M2 2h6v14H2V2zm8 0h6v8h-6V2z" fill="white" />
+                <svg width="14" height="14" viewBox="0 0 32 32" fill="none">
+                  <path d="M16 6l7 10h-4.5v10h-5V16H9l7-10z" fill="white"/>
                 </svg>
               </div>
               PLGames
